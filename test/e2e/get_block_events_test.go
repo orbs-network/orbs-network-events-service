@@ -10,10 +10,11 @@ import (
 	"time"
 )
 
-func TestEventParser(t *testing.T) {
+func TestGetBlockEvents(t *testing.T) {
 	client := orbs.NewClient("http://localhost:8080", 42, codec.NETWORK_TYPE_TEST_NET)
 
 	code, err := orbs.ReadSourcesFromDir("./_contracts")
+	require.NoError(t, err)
 	contractName := fmt.Sprintf("EventEmitter%d", time.Now().UnixNano())
 	account, _ := orbs.CreateAccount()
 
