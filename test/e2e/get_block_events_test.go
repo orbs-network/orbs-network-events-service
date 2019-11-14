@@ -30,15 +30,15 @@ func TestGetBlockEvents(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, codec.EXECUTION_RESULT_SUCCESS, res.ExecutionResult)
 
-	eventMap, err := events.GetBlockEvents(client, res.BlockHeight)
+	eventList, err := events.GetBlockEvents(client, res.BlockHeight)
 	require.NoError(t, err)
 
-	require.Len(t, eventMap[contractName], 1)
+	require.Len(t, eventList, 1)
 	require.EqualValues(t, &codec.Event{
 		ContractName: contractName,
 		EventName:    "MovieRelease",
 		Arguments: []interface{}{
 			"Raising Arizona", uint32(1987), "Nicolas Cage",
 		},
-	}, eventMap[contractName][0])
+	}, eventList[0])
 }

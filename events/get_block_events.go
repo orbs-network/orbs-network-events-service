@@ -5,20 +5,15 @@ import (
 	"github.com/orbs-network/orbs-client-sdk-go/orbs"
 )
 
-type EventMap map[string][]*codec.Event
-
-func GetBlockEvents(client *orbs.OrbsClient, height uint64) (EventMap, error) {
+func GetBlockEvents(client *orbs.OrbsClient, height uint64) (events []*codec.Event, err error) {
 	res, err := client.GetBlock(height)
 	if err != nil {
-		return nil, err
+		return
 	}
 
-	events := make(EventMap)
 	for _, tx := range res.Transactions {
-		es := events[tx.ContractName]
-		es = append(es, tx.OutputEvents...)
-		events[tx.ContractName] = es
+		events = append(events, tx.OutputEvents...)
 	}
 
-	return events, nil
+	return
 }
