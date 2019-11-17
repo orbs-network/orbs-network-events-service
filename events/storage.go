@@ -5,9 +5,6 @@ import (
 	"fmt"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/orbs-network/orbs-client-sdk-go/codec"
-	"github.com/pkg/errors"
-	"strconv"
-	"strings"
 )
 
 type storage struct {
@@ -15,7 +12,7 @@ type storage struct {
 }
 
 type Storage interface {
-	StoreEvent(event *codec.Event) error
+	StoreEvent(blockHeight uint64, timestamp uint64, event *codec.Event) error
 	GetEvents(contractName string, eventType string) ([]*codec.Event, error)
 }
 
@@ -30,7 +27,7 @@ func NewStorage(dataSource string) (Storage, error) {
 	}, nil
 }
 
-func (s *storage) StoreEvent(event *codec.Event) error {
+func (s *storage) StoreEvent(blockHeight uint64, timestamp uint64, event *codec.Event) error {
 	tableName := getTableName(event)
 
 	if !s.checkIfTableExists(tableName) {
@@ -39,27 +36,15 @@ func (s *storage) StoreEvent(event *codec.Event) error {
 		}
 	}
 
-	return s.insertValues(tableName, event.Arguments)
-}
-
-func (s *storage) checkIfTableExists(tableName string) bool {
-	row := s.db.QueryRow("SELECT count(*) FROM sqlite_master WHERE type='table' AND name='" + tableName + "';")
-
-	var count int
-	row.Scan(&count)
-
-	return count == 1
-}
-
-func (s *storage) createTable(tableName string, mapping string) error {
-	query := "CREATE TABLE " + escape(tableName) + " (" + mapping + ")"
-	println(query)
-	_, err := s.db.Exec(query)
-	return err
-}
-
-func (s *storage) insertValues(tableName string, values []interface{}) error {
-	return errors.New("not implemented")
+	if columns, err := s.getTableColumns(tableName); err != nil {
+		return err
+	} else {
+		values := []interface{}{
+			blockHeight, timestamp,
+		}
+		values = append(values, event.Arguments...)
+		return s.insertValues(tableName, columns, values...)
+	}
 }
 
 func (s *storage) GetEvents(contractName string, eventType string) ([]*codec.Event, error) {
@@ -74,51 +59,27 @@ func (s *storage) GetEvents(contractName string, eventType string) ([]*codec.Eve
 
 	columns, _ := rows.Columns()
 	columnsCount := len(columns)
-	println(fmt.Sprintf("%+v", columns))
+	println("columns", fmt.Sprintf("%+v", columns))
 
 	for rows.Next() {
 		arguments := make([]interface{}, columnsCount)
-		if err := rows.Scan(&arguments); err != nil {
+		dest := make([]interface{}, columnsCount) // A temporary interface{} slice
+		for i, _ := range arguments {
+			dest[i] = &arguments[i]
+		}
+
+		if err := rows.Scan(dest...); err != nil {
 			return nil, err
 		}
 
-		println("RRR", arguments)
+		println(fmt.Sprintf("args %+v", arguments))
+
+		events = append(events, &codec.Event{
+			ContractName: contractName,
+			EventName:    eventType,
+			Arguments:    arguments[2:],
+		})
 	}
 
 	return events, nil
-}
-
-func getTableName(event *codec.Event) string {
-	return getTableNameForContractAndEvent(event.ContractName, event.EventName)
-}
-
-func getTableNameForContractAndEvent(contractName string, eventName string) string {
-	return strings.Join([]string{"events", contractName, eventName}, ".")
-}
-
-func getTableMapping(event *codec.Event) string {
-	columns := []string{
-		"timestamp uint64",
-	}
-
-	for index, arg := range event.Arguments {
-		columns = append(columns, "argument"+strconv.FormatInt(int64(index), 10)+" "+getTableMappingType(arg))
-	}
-
-	return strings.Join(columns, ", ")
-}
-
-func getTableMappingType(arg interface{}) string {
-	switch arg.(type) {
-	case string:
-		return "string"
-	case uint32:
-		return "uint32"
-	default:
-		return "blob"
-	}
-}
-
-func escape(tableName string) string {
-	return `"` + tableName + `"`
 }
