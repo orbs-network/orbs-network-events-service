@@ -11,11 +11,6 @@ type storage struct {
 	db *sql.DB
 }
 
-type Storage interface {
-	StoreEvent(blockHeight uint64, timestamp uint64, event *codec.Event) error
-	GetEvents(contractName string, eventType string) ([]*StoredEvent, error)
-}
-
 func NewStorage(dataSource string) (Storage, error) {
 	db, err := sql.Open("sqlite3", dataSource)
 	if err != nil {
@@ -47,8 +42,8 @@ func (s *storage) StoreEvent(blockHeight uint64, timestamp uint64, event *codec.
 	}
 }
 
-func (s *storage) GetEvents(contractName string, eventType string) (events []*StoredEvent, err error) {
-	query := "SELECT * FROM " + escape(getTableNameForContractAndEvent(contractName, eventType))
+func (s *storage) GetEvents(filterQuery *FilterQuery) (events []*StoredEvent, err error) {
+	query := "SELECT * FROM " + escape(getTableNameForContractAndEvent(filterQuery.ContractName, filterQuery.EventNames[0]))
 	println(query)
 	rows, err := s.db.Query(query)
 	if err != nil {
@@ -73,8 +68,8 @@ func (s *storage) GetEvents(contractName string, eventType string) (events []*St
 		println(fmt.Sprintf("args %+v", arguments))
 
 		events = append(events, &StoredEvent{
-			ContractName: contractName,
-			EventName:    eventType,
+			ContractName: filterQuery.ContractName,
+			EventName:    filterQuery.EventNames[0],
 
 			BlockHeight: uint64(arguments[0].(int64)),
 			Timestamp:   uint64(arguments[1].(int64)),

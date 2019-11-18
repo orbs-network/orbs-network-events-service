@@ -12,7 +12,7 @@ var DEFAULT_EVENT = &codec.Event{
 	ContractName: "SomeContract",
 	EventName:    "MovieRelease",
 	Arguments: []interface{}{
-		"Raising Arizona", uint32(1987), "Nicolas Cage",
+		"Raising Arizona", "1987-03-06", "Nicolas Cage",
 	},
 }
 
@@ -36,12 +36,15 @@ func TestStoreEvent(t *testing.T) {
 	err = storage.StoreEvent(DEFAULT_BLOCK_HEIGHT, DEFAULT_TIME, DEFAULT_EVENT)
 	require.NoError(t, err, "could not store event")
 
-	eventList, err := storage.GetEvents(DEFAULT_EVENT.ContractName, DEFAULT_EVENT.EventName)
+	eventList, err := storage.GetEvents(&FilterQuery{
+		ContractName: DEFAULT_EVENT.ContractName,
+		EventNames:   []string{DEFAULT_EVENT.EventName},
+	})
 	require.NoError(t, err)
 	require.Len(t, eventList, 1)
 	require.EqualValues(t, &StoredEvent{
 		ContractName: DEFAULT_EVENT.ContractName,
-		EventName:    DEFAULT_EVENT.ContractName,
+		EventName:    DEFAULT_EVENT.EventName,
 		BlockHeight:  DEFAULT_BLOCK_HEIGHT,
 		Timestamp:    DEFAULT_TIME,
 		Arguments:    DEFAULT_EVENT.Arguments,
