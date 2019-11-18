@@ -39,4 +39,11 @@ func TestStoreEvent(t *testing.T) {
 	eventList, err := storage.GetEvents(DEFAULT_EVENT.ContractName, DEFAULT_EVENT.EventName)
 	require.NoError(t, err)
 	require.Len(t, eventList, 1)
+	require.EqualValues(t, &StoredEvent{
+		ContractName: DEFAULT_EVENT.ContractName,
+		EventName:    DEFAULT_EVENT.ContractName,
+		BlockHeight:  DEFAULT_BLOCK_HEIGHT,
+		Timestamp:    DEFAULT_TIME,
+		Arguments:    DEFAULT_EVENT.Arguments,
+	}, eventList[0])
 }

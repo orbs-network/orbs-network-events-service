@@ -13,7 +13,7 @@ type storage struct {
 
 type Storage interface {
 	StoreEvent(blockHeight uint64, timestamp uint64, event *codec.Event) error
-	GetEvents(contractName string, eventType string) ([]*codec.Event, error)
+	GetEvents(contractName string, eventType string) ([]*StoredEvent, error)
 }
 
 func NewStorage(dataSource string) (Storage, error) {
@@ -47,9 +47,7 @@ func (s *storage) StoreEvent(blockHeight uint64, timestamp uint64, event *codec.
 	}
 }
 
-func (s *storage) GetEvents(contractName string, eventType string) ([]*codec.Event, error) {
-	var events []*codec.Event
-
+func (s *storage) GetEvents(contractName string, eventType string) (events []*StoredEvent, err error) {
 	query := "SELECT * FROM " + escape(getTableNameForContractAndEvent(contractName, eventType))
 	println(query)
 	rows, err := s.db.Query(query)
@@ -74,10 +72,13 @@ func (s *storage) GetEvents(contractName string, eventType string) ([]*codec.Eve
 
 		println(fmt.Sprintf("args %+v", arguments))
 
-		events = append(events, &codec.Event{
+		events = append(events, &StoredEvent{
 			ContractName: contractName,
 			EventName:    eventType,
-			Arguments:    arguments[2:],
+
+			BlockHeight: uint64(arguments[0].(int64)),
+			Timestamp:   uint64(arguments[1].(int64)),
+			Arguments:   arguments[2:],
 		})
 	}
 
