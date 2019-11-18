@@ -43,7 +43,7 @@ func TestProcessEvents(t *testing.T) {
 	require.NoError(t, err)
 
 	var eventList []*codec.Event
-	lastProcessedBlock, err := events.ProcessEvents(client, startingBlock, blockHeight, func(list []*codec.Event) error {
+	lastProcessedBlock, err := events.ProcessEvents(client, startingBlock, blockHeight, func(blockHeight uint64, timestamp int64, list []*codec.Event) error {
 		eventList = append(eventList, list...)
 		return nil
 	})

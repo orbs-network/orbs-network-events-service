@@ -7,7 +7,7 @@ type StoredEvent struct {
 	EventName    string
 
 	BlockHeight uint64
-	Timestamp   uint64
+	Timestamp   int64
 	Arguments   []interface{}
 }
 
@@ -23,6 +23,7 @@ type FilterQuery struct {
 }
 
 type Storage interface {
-	StoreEvent(blockHeight uint64, timestamp uint64, event *codec.Event) error
+	StoreEvent(blockHeight uint64, timestamp int64, event *codec.Event) error
+	GetBlockHeight() uint64
 	GetEvents(query *FilterQuery) ([]*StoredEvent, error)
 }

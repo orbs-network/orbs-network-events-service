@@ -5,17 +5,17 @@ import (
 	"github.com/orbs-network/orbs-client-sdk-go/orbs"
 )
 
-type EventProcessingCallback func(eventMap []*codec.Event) error
+type EventProcessingCallback func(blockHeight uint64, timestamp int64, eventList []*codec.Event) error
 
 func ProcessEvents(client *orbs.OrbsClient, start uint64, end uint64, callback EventProcessingCallback) (uint64, error) {
-	for i := start; i <= end; i++ {
-		events, err := GetBlockEvents(client, i)
+	for blockHeight := start; blockHeight <= end; blockHeight++ {
+		timestamp, events, err := GetBlockEvents(client, blockHeight)
 		if err != nil {
-			return i, err
+			return blockHeight, err
 		}
 
-		if err := callback(events); err != nil {
-			return i, err
+		if err := callback(blockHeight, timestamp, events); err != nil {
+			return blockHeight, err
 		}
 	}
 

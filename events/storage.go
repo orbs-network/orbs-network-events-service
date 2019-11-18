@@ -22,7 +22,7 @@ func NewStorage(dataSource string) (Storage, error) {
 	}, nil
 }
 
-func (s *storage) StoreEvent(blockHeight uint64, timestamp uint64, event *codec.Event) error {
+func (s *storage) StoreEvent(blockHeight uint64, timestamp int64, event *codec.Event) error {
 	tableName := getTableName(event)
 
 	if !s.checkIfTableExists(tableName) {
@@ -72,10 +72,24 @@ func (s *storage) GetEvents(filterQuery *FilterQuery) (events []*StoredEvent, er
 			EventName:    filterQuery.EventNames[0],
 
 			BlockHeight: uint64(arguments[0].(int64)),
-			Timestamp:   uint64(arguments[1].(int64)),
+			Timestamp:   arguments[1].(int64),
 			Arguments:   arguments[2:],
 		})
 	}
 
 	return events, nil
+}
+
+func (s *storage) GetBlockHeight() uint64 {
+	panic("not implemented")
+	row := s.db.QueryRow("SELECT count(*) FROM ;")
+
+	var count uint64
+	row.Scan(&count)
+
+	return count
+}
+
+func (s *storage) IncBlockHeight() uint64 {
+	panic("not implemented")
 }

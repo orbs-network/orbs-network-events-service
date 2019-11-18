@@ -21,7 +21,7 @@ const DATA_SOURCE_MODE = "?mode=rw"
 
 const DEFAULT_BLOCK_HEIGHT = uint64(1974)
 
-var DEFAULT_TIME = uint64(time.Now().UnixNano())
+var DEFAULT_TIME = time.Now().UnixNano()
 
 func removeDB() {
 	os.RemoveAll(DATA_SOURCE)
