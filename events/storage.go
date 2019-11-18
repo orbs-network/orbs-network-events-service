@@ -5,10 +5,13 @@ import (
 	"fmt"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/orbs-network/orbs-client-sdk-go/codec"
+	bolt "go.etcd.io/bbolt"
+	"time"
 )
 
 type storage struct {
-	db *sql.DB
+	db     *sql.DB
+	boltDB *bolt.DB
 }
 
 func NewStorage(dataSource string) (Storage, error) {
@@ -17,8 +20,11 @@ func NewStorage(dataSource string) (Storage, error) {
 		return nil, err
 	}
 
+	boltDb, err := bolt.Open("test.bolt", 0600, &bolt.Options{Timeout: 1 * time.Second})
+
 	return &storage{
 		db,
+		boltDb,
 	}, nil
 }
 
@@ -80,16 +86,40 @@ func (s *storage) GetEvents(filterQuery *FilterQuery) (events []*StoredEvent, er
 	return events, nil
 }
 
-func (s *storage) GetBlockHeight() uint64 {
-	panic("not implemented")
-	row := s.db.QueryRow("SELECT count(*) FROM ;")
+func (s *storage) GetBlockHeight() (value uint64, err error) {
+	err = s.boltDB.View(func(tx *bolt.Tx) error {
+		blocks := tx.Bucket([]byte("blocks"))
+		blockHeightRaw, _ := blocks.Cursor().First()
+		value = ReadUint64(blockHeightRaw)
 
-	var count uint64
-	row.Scan(&count)
+		return nil
+	})
 
-	return count
+	return
 }
 
-func (s *storage) IncBlockHeight() uint64 {
-	panic("not implemented")
+func (s *storage) StoreBlockHeight(blockHeight uint64, timestamp int64) (err error) {
+	tx, err := s.boltDB.Begin(true)
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		if err != nil {
+			println("rolling back!")
+			tx.Rollback()
+		}
+	}()
+
+	blocks, err := tx.CreateBucketIfNotExists([]byte("blocks"))
+	if err != nil {
+		return err
+	}
+
+	err = blocks.Put(SimpleSerialization(blockHeight), SimpleSerialization(timestamp))
+	if err != nil {
+		return err
+	}
+
+	return tx.Commit()
 }
