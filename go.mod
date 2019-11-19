@@ -12,3 +12,5 @@ require (
 	github.com/stretchr/testify v1.4.0
 	go.etcd.io/bbolt v1.3.3
 )
+
+replace github.com/orbs-network/orbs-spec => ../orbs-spec

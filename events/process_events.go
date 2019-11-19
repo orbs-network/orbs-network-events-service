@@ -1,11 +1,11 @@
 package events
 
 import (
-	"github.com/orbs-network/orbs-client-sdk-go/codec"
 	"github.com/orbs-network/orbs-client-sdk-go/orbs"
+	"github.com/orbs-network/orbs-spec/types/go/protocol"
 )
 
-type EventProcessingCallback func(blockHeight uint64, timestamp int64, eventList []*codec.Event) error
+type EventProcessingCallback func(blockHeight uint64, timestamp int64, eventList []*protocol.IndexedEvent) error
 
 func ProcessEvents(client *orbs.OrbsClient, start uint64, end uint64, callback EventProcessingCallback) (uint64, error) {
 	for blockHeight := start; blockHeight <= end; blockHeight++ {

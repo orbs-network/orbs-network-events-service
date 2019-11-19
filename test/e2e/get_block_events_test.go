@@ -5,6 +5,8 @@ import (
 	"github.com/orbs-network/orbs-client-sdk-go/codec"
 	"github.com/orbs-network/orbs-client-sdk-go/orbs"
 	"github.com/orbs-network/orbs-network-events-service/events"
+	"github.com/orbs-network/orbs-spec/types/go/primitives"
+	"github.com/orbs-network/orbs-spec/types/go/protocol"
 	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
@@ -34,11 +36,15 @@ func TestGetBlockEvents(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Len(t, eventList, 1)
-	require.EqualValues(t, &codec.Event{
-		ContractName: contractName,
-		EventName:    "MovieRelease",
-		Arguments: []interface{}{
-			"Raising Arizona", uint32(1987), "Nicolas Cage",
-		},
-	}, eventList[0])
+	args, _ := protocol.PackedInputArgumentsFromNatives([]interface{}{
+		"Raising Arizona", uint32(1987), "Nicolas Cage",
+	})
+	require.EqualValues(t, (&protocol.IndexedEventBuilder{
+		ContractName:    primitives.ContractName(contractName),
+		EventName:       "MovieRelease",
+		BlockHeight:     primitives.BlockHeight(res.BlockHeight),
+		ExecutionResult: protocol.EXECUTION_RESULT_SUCCESS,
+		Timestamp:       primitives.TimestampNano(res.BlockTimestamp.UnixNano()),
+		Arguments:       args,
+	}).Build(), eventList[0])
 }

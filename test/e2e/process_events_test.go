@@ -5,6 +5,8 @@ import (
 	"github.com/orbs-network/orbs-client-sdk-go/codec"
 	"github.com/orbs-network/orbs-client-sdk-go/orbs"
 	"github.com/orbs-network/orbs-network-events-service/events"
+	"github.com/orbs-network/orbs-spec/types/go/primitives"
+	"github.com/orbs-network/orbs-spec/types/go/protocol"
 	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
@@ -28,22 +30,22 @@ func TestProcessEvents(t *testing.T) {
 	arizonaTx, _, _ := client.CreateTransaction(account.PublicKey, account.PrivateKey, contractName, "release",
 		"Raising Arizona", uint32(1987), "Nicolas Cage")
 
-	res, err = client.SendTransaction(arizonaTx)
+	arizonaRes, err := client.SendTransaction(arizonaTx)
 	require.NoError(t, err)
-	require.EqualValues(t, codec.EXECUTION_RESULT_SUCCESS, res.ExecutionResult)
+	require.EqualValues(t, codec.EXECUTION_RESULT_SUCCESS, arizonaRes.ExecutionResult)
 
 	vampireTx, _, _ := client.CreateTransaction(account.PublicKey, account.PrivateKey, contractName, "release",
 		"Vampire's Kiss", uint32(1989), "Nicolas Cage")
 
-	res, err = client.SendTransaction(vampireTx)
+	vampireRes, err := client.SendTransaction(vampireTx)
 	require.NoError(t, err)
-	require.EqualValues(t, codec.EXECUTION_RESULT_SUCCESS, res.ExecutionResult)
+	require.EqualValues(t, codec.EXECUTION_RESULT_SUCCESS, vampireRes.ExecutionResult)
 
 	blockHeight, err := events.GetBlockHeight(client, account)
 	require.NoError(t, err)
 
-	var eventList []*codec.Event
-	lastProcessedBlock, err := events.ProcessEvents(client, startingBlock, blockHeight, func(blockHeight uint64, timestamp int64, list []*codec.Event) error {
+	var eventList []*protocol.IndexedEvent
+	lastProcessedBlock, err := events.ProcessEvents(client, startingBlock, blockHeight, func(blockHeight uint64, timestamp int64, list []*protocol.IndexedEvent) error {
 		eventList = append(eventList, list...)
 		return nil
 	})
@@ -52,19 +54,28 @@ func TestProcessEvents(t *testing.T) {
 
 	require.Len(t, eventList, 2)
 
-	require.EqualValues(t, &codec.Event{
-		ContractName: contractName,
-		EventName:    "MovieRelease",
-		Arguments: []interface{}{
-			"Raising Arizona", uint32(1987), "Nicolas Cage",
-		},
-	}, eventList[0])
+	arizonaArgs, _ := protocol.PackedInputArgumentsFromNatives([]interface{}{
+		"Raising Arizona", uint32(1987), "Nicolas Cage",
+	})
+	require.EqualValues(t, (&protocol.IndexedEventBuilder{
+		ContractName:    primitives.ContractName(contractName),
+		EventName:       "MovieRelease",
+		BlockHeight:     primitives.BlockHeight(arizonaRes.BlockHeight),
+		ExecutionResult: protocol.EXECUTION_RESULT_SUCCESS,
+		Timestamp:       primitives.TimestampNano(arizonaRes.BlockTimestamp.UnixNano()),
+		Arguments:       arizonaArgs,
+	}).Build(), eventList[0])
 
-	require.EqualValues(t, &codec.Event{
-		ContractName: contractName,
-		EventName:    "MovieRelease",
-		Arguments: []interface{}{
-			"Vampire's Kiss", uint32(1989), "Nicolas Cage",
-		},
-	}, eventList[1])
+	vampireArgs, _ := protocol.PackedInputArgumentsFromNatives([]interface{}{
+		"Vampire's Kiss", uint32(1989), "Nicolas Cage",
+	})
+
+	require.EqualValues(t, (&protocol.IndexedEventBuilder{
+		ContractName:    primitives.ContractName(contractName),
+		EventName:       "MovieRelease",
+		BlockHeight:     primitives.BlockHeight(vampireRes.BlockHeight),
+		ExecutionResult: protocol.EXECUTION_RESULT_SUCCESS,
+		Timestamp:       primitives.TimestampNano(vampireRes.BlockTimestamp.UnixNano()),
+		Arguments:       vampireArgs,
+	}).Build(), eventList[1])
 }
