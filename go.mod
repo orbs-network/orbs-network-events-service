@@ -3,7 +3,6 @@ module github.com/orbs-network/orbs-network-events-service
 go 1.12
 
 require (
-	github.com/mattn/go-sqlite3 v1.12.0
 	github.com/orbs-network/boyarin v0.20.0 // indirect
 	github.com/orbs-network/govnr v0.2.0
 	github.com/orbs-network/orbs-client-sdk-go v0.12.0

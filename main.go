@@ -47,36 +47,32 @@ func main() {
 			account, _ := orbs.CreateAccount()
 			vchainLogger := logger.WithTags(log.Uint32("vcid", chainId))
 			storage, err := events.NewStorage(vchainLogger, fmt.Sprintf("./data/vchain-%d.bolt", chainId))
+			defer storage.Shutdown()
+
 			if err != nil {
 				logger.Error("failed to access storage", log.Error(err))
-				panic(err)
+				return
 			}
 
 			lastProcessedBlock := storage.GetBlockHeight()
+			logger.Info("starting the sync process", log.Uint64("blockHeight", lastProcessedBlock))
 
 			for {
 				time.Sleep(cfg.PollingInterval)
 
 				finalBlock, err := events.GetBlockHeight(client, account)
 				if err != nil {
-					panic(err)
+					logger.Error("failed to get last block height", log.Error(err))
+					return
 				}
 				if finalBlock <= lastProcessedBlock+1 {
 					continue
 				}
 
-				lastProcessedBlock, err = events.ProcessEvents(client, lastProcessedBlock+1, finalBlock, func(blockHeight uint64, timestamp int64, eventList []*codec.Event) error {
-					for _, event := range eventList {
-						if err := storage.StoreEvent(blockHeight, timestamp, event); err != nil {
-							return err
-						}
-					}
-
-					return nil
-				})
-
+				lastProcessedBlock, err = events.ProcessEvents(client, lastProcessedBlock+1, finalBlock, storage.StoreEvents)
 				if err != nil {
-					panic(err)
+					logger.Error("failed to store events", log.Error(err))
+					return
 				}
 			}
 		})

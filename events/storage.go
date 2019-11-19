@@ -16,7 +16,10 @@ type storage struct {
 }
 
 func NewStorage(logger log.Logger, dataSource string) (Storage, error) {
-	boltDb, err := bolt.Open(dataSource, 0600, &bolt.Options{Timeout: 3 * time.Second})
+	boltDb, err := bolt.Open(dataSource, 0600, &bolt.Options{
+		Timeout:  5 * time.Second,
+		ReadOnly: false,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -27,7 +30,7 @@ func NewStorage(logger log.Logger, dataSource string) (Storage, error) {
 	}, nil
 }
 
-func (s *storage) StoreEvent(blockHeight uint64, timestamp int64, event *codec.Event) error {
+func (s *storage) StoreEvents(blockHeight uint64, timestamp int64, events []*codec.Event) error {
 	tx, err := s.db.Begin(true)
 	if err != nil {
 		return err
@@ -40,6 +43,20 @@ func (s *storage) StoreEvent(blockHeight uint64, timestamp int64, event *codec.E
 		}
 	}()
 
+	if err := s.storeBlockHeight(tx, blockHeight, timestamp); err != nil {
+		return err
+	}
+
+	for _, event := range events {
+		if err := s.storeEvent(tx, blockHeight, timestamp, event); err != nil {
+			return err
+		}
+	}
+
+	return tx.Commit()
+}
+
+func (s *storage) storeEvent(tx *bolt.Tx, blockHeight uint64, timestamp int64, event *codec.Event) error {
 	tableName := getEventsBucketName(event.ContractName, event.EventName)
 	eventsBucket, err := tx.CreateBucketIfNotExists([]byte(tableName))
 	if err != nil {
@@ -58,15 +75,12 @@ func (s *storage) StoreEvent(blockHeight uint64, timestamp int64, event *codec.E
 		log.String("contractName", event.ContractName),
 		log.String("eventName", event.EventName),
 		log.String("arguments", fmt.Sprintf("%v", event.Arguments)))
-	if err != nil {
-		return err
-	}
-	err = eventsBucket.Put(SimpleSerialization(blockHeight), arguments.Raw())
+
 	if err != nil {
 		return err
 	}
 
-	return tx.Commit()
+	return eventsBucket.Put(ToBytes(blockHeight), arguments.Raw())
 }
 
 func (s *storage) GetEvents(filterQuery *FilterQuery) (events []*StoredEvent, err error) {
@@ -106,7 +120,7 @@ func (s *storage) GetBlockHeight() (value uint64) {
 			return nil
 		}
 
-		blockHeightRaw, _ := blocksBucket.Cursor().First()
+		blockHeightRaw, _ := blocksBucket.Cursor().Last()
 		value = ReadUint64(blockHeightRaw)
 
 		return nil
@@ -115,30 +129,27 @@ func (s *storage) GetBlockHeight() (value uint64) {
 	return
 }
 
-func (s *storage) StoreBlockHeight(blockHeight uint64, timestamp int64) (err error) {
-	tx, err := s.db.Begin(true)
-	if err != nil {
-		return err
-	}
-
-	defer func() {
-		if err != nil {
-			println("rolling back!")
-			tx.Rollback()
-		}
-	}()
-
+func (s *storage) storeBlockHeight(tx *bolt.Tx, blockHeight uint64, timestamp int64) (err error) {
 	blocksBucket, err := tx.CreateBucketIfNotExists([]byte("blocks"))
 	if err != nil {
 		return err
 	}
 
-	err = blocksBucket.Put(SimpleSerialization(blockHeight), SimpleSerialization(timestamp))
-	if err != nil {
-		return err
+	return blocksBucket.Put(ToBytes(blockHeight), ToBytes(timestamp))
+}
+
+func (s *storage) Shutdown() (err error) {
+	if err = s.db.Sync(); err != nil {
+		s.logger.Error("failed to synchronize storage on shutdown")
 	}
 
-	return tx.Commit()
+	if err = s.db.Close(); err != nil {
+		s.logger.Error("failed to close storage on shutdown")
+	}
+
+	s.logger.Info("storage shut down")
+
+	return
 }
 
 func getEventsBucketName(contractName string, eventName string) string {

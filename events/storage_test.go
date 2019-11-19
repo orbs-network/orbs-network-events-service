@@ -33,8 +33,11 @@ func TestStorage_StoreEvent(t *testing.T) {
 	storage, err := NewStorage(config.GetLogger(), DATA_SOURCE)
 	require.NoError(t, err, "could not create new data source")
 
-	err = storage.StoreEvent(DEFAULT_BLOCK_HEIGHT, DEFAULT_TIME, DEFAULT_EVENT)
+	err = storage.StoreEvents(DEFAULT_BLOCK_HEIGHT, DEFAULT_TIME, []*codec.Event{DEFAULT_EVENT})
 	require.NoError(t, err, "could not store event")
+
+	blockHeight := storage.GetBlockHeight()
+	require.EqualValues(t, DEFAULT_BLOCK_HEIGHT, blockHeight)
 
 	eventList, err := storage.GetEvents(&FilterQuery{
 		ContractName: DEFAULT_EVENT.ContractName,
@@ -49,24 +52,18 @@ func TestStorage_StoreEvent(t *testing.T) {
 		Timestamp:    DEFAULT_TIME,
 		Arguments:    DEFAULT_EVENT.Arguments,
 	}, eventList[0])
-}
 
-func TestStorage_StoreBlockHeight(t *testing.T) {
-	removeDB()
-
-	storage, err := NewStorage(config.GetLogger(), DATA_SOURCE)
-	require.NoError(t, err)
-
-	err = storage.StoreBlockHeight(DEFAULT_BLOCK_HEIGHT, DEFAULT_TIME)
-	require.NoError(t, err)
-
-	blockHeight := storage.GetBlockHeight()
-	require.EqualValues(t, DEFAULT_BLOCK_HEIGHT, blockHeight)
-
-	err = storage.StoreBlockHeight(DEFAULT_BLOCK_HEIGHT+100, DEFAULT_TIME+5000)
-	require.NoError(t, err)
+	err = storage.StoreEvents(DEFAULT_BLOCK_HEIGHT+100, DEFAULT_TIME+5000, []*codec.Event{DEFAULT_EVENT})
+	require.NoError(t, err, "could not store event")
 
 	updatedBlockHeight := storage.GetBlockHeight()
 	require.NoError(t, err)
 	require.EqualValues(t, DEFAULT_BLOCK_HEIGHT+100, updatedBlockHeight)
+
+	eventList, err = storage.GetEvents(&FilterQuery{
+		ContractName: DEFAULT_EVENT.ContractName,
+		EventNames:   []string{DEFAULT_EVENT.EventName},
+	})
+	require.NoError(t, err)
+	require.Len(t, eventList, 2)
 }
