@@ -55,7 +55,7 @@ func main() {
 			}
 
 			lastProcessedBlock := storage.GetBlockHeight()
-			logger.Info("starting the sync process", log.Uint64("blockHeight", lastProcessedBlock))
+			logger.Info("starting the sync process", log.Uint64("blockHeight", uint64(lastProcessedBlock)))
 
 			for {
 				time.Sleep(cfg.PollingInterval)

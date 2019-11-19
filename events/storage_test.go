@@ -48,7 +48,7 @@ func TestStorage_StoreEvent(t *testing.T) {
 	storage, err := NewStorage(config.GetLogger(), DATA_SOURCE)
 	require.NoError(t, err, "could not create new data source")
 
-	err = storage.StoreEvents(uint64(DEFAULT_BLOCK_HEIGHT), int64(DEFAULT_TIME), []*protocol.IndexedEvent{DEFAULT_EVENT})
+	err = storage.StoreEvents(DEFAULT_BLOCK_HEIGHT, DEFAULT_TIME, []*protocol.IndexedEvent{DEFAULT_EVENT})
 	require.NoError(t, err, "could not store event")
 
 	blockHeight := storage.GetBlockHeight()
@@ -62,7 +62,7 @@ func TestStorage_StoreEvent(t *testing.T) {
 	require.Len(t, eventList, 1)
 	require.EqualValues(t, DEFAULT_EVENT.Raw(), eventList[0].Raw())
 
-	err = storage.StoreEvents(uint64(DEFAULT_BLOCK_HEIGHT+100), int64(DEFAULT_TIME), []*protocol.IndexedEvent{NEXT_EVENT})
+	err = storage.StoreEvents(DEFAULT_BLOCK_HEIGHT+100, DEFAULT_TIME, []*protocol.IndexedEvent{NEXT_EVENT})
 	require.NoError(t, err, "could not store event")
 
 	updatedBlockHeight := storage.GetBlockHeight()

@@ -1,15 +1,9 @@
 package events
 
-import "github.com/orbs-network/orbs-spec/types/go/protocol"
-
-type StoredEvent struct {
-	ContractName string
-	EventName    string
-
-	BlockHeight uint64
-	Timestamp   int64
-	Arguments   []interface{}
-}
+import (
+	"github.com/orbs-network/orbs-spec/types/go/primitives"
+	"github.com/orbs-network/orbs-spec/types/go/protocol"
+)
 
 type FilterQuery struct {
 	ContractName string
@@ -23,8 +17,8 @@ type FilterQuery struct {
 }
 
 type Storage interface {
-	StoreEvents(blockHeight uint64, timestamp int64, events []*protocol.IndexedEvent) error
-	GetBlockHeight() uint64
+	StoreEvents(blockHeight primitives.BlockHeight, timestamp primitives.TimestampNano, events []*protocol.IndexedEvent) error
+	GetBlockHeight() primitives.BlockHeight
 	GetEvents(query *FilterQuery) ([]*protocol.IndexedEvent, error)
 	Shutdown() error
 }

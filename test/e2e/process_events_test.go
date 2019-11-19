@@ -25,7 +25,7 @@ func TestProcessEvents(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, codec.EXECUTION_RESULT_SUCCESS, res.ExecutionResult)
 
-	startingBlock := res.BlockHeight
+	startingBlock := primitives.BlockHeight(res.BlockHeight)
 
 	arizonaTx, _, _ := client.CreateTransaction(account.PublicKey, account.PrivateKey, contractName, "release",
 		"Raising Arizona", uint32(1987), "Nicolas Cage")
@@ -45,7 +45,7 @@ func TestProcessEvents(t *testing.T) {
 	require.NoError(t, err)
 
 	var eventList []*protocol.IndexedEvent
-	lastProcessedBlock, err := events.ProcessEvents(client, startingBlock, blockHeight, func(blockHeight uint64, timestamp int64, list []*protocol.IndexedEvent) error {
+	lastProcessedBlock, err := events.ProcessEvents(client, startingBlock, blockHeight, func(blockHeight primitives.BlockHeight, timestamp primitives.TimestampNano, list []*protocol.IndexedEvent) error {
 		eventList = append(eventList, list...)
 		return nil
 	})

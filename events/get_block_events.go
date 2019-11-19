@@ -8,13 +8,13 @@ import (
 	"github.com/pkg/errors"
 )
 
-func GetBlockEvents(client *orbs.OrbsClient, height uint64) (timestamp int64, events []*protocol.IndexedEvent, err error) {
-	res, err := client.GetBlock(height)
+func GetBlockEvents(client *orbs.OrbsClient, height primitives.BlockHeight) (timestamp primitives.TimestampNano, events []*protocol.IndexedEvent, err error) {
+	res, err := client.GetBlock(uint64(height))
 	if err != nil {
 		return
 	}
 
-	timestamp = res.BlockTimestamp.UnixNano()
+	timestamp = primitives.TimestampNano(res.BlockTimestamp.UnixNano())
 	for _, tx := range res.Transactions {
 		for i, event := range tx.OutputEvents {
 			arguments, err := protocol.PackedInputArgumentsFromNatives(event.Arguments)
@@ -30,7 +30,7 @@ func GetBlockEvents(client *orbs.OrbsClient, height uint64) (timestamp int64, ev
 				ContractName:    primitives.ContractName(event.ContractName),
 				EventName:       event.EventName,
 				BlockHeight:     primitives.BlockHeight(height),
-				Timestamp:       primitives.TimestampNano(timestamp), // tx time is irrelevant
+				Timestamp:       timestamp, // tx time is irrelevant
 				Index:           uint32(i),
 				ExecutionResult: executionResult,
 				Arguments:       arguments,

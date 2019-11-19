@@ -32,7 +32,7 @@ func TestGetBlockEvents(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, codec.EXECUTION_RESULT_SUCCESS, res.ExecutionResult)
 
-	_, eventList, err := events.GetBlockEvents(client, res.BlockHeight)
+	_, eventList, err := events.GetBlockEvents(client, primitives.BlockHeight(res.BlockHeight))
 	require.NoError(t, err)
 
 	require.Len(t, eventList, 1)

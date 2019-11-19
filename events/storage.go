@@ -2,6 +2,7 @@ package events
 
 import (
 	"fmt"
+	"github.com/orbs-network/orbs-spec/types/go/primitives"
 	"github.com/orbs-network/orbs-spec/types/go/protocol"
 	"github.com/orbs-network/scribe/log"
 	bolt "go.etcd.io/bbolt"
@@ -29,7 +30,7 @@ func NewStorage(logger log.Logger, dataSource string) (Storage, error) {
 	}, nil
 }
 
-func (s *storage) StoreEvents(blockHeight uint64, timestamp int64, events []*protocol.IndexedEvent) error {
+func (s *storage) StoreEvents(blockHeight primitives.BlockHeight, timestamp primitives.TimestampNano, events []*protocol.IndexedEvent) error {
 	tx, err := s.db.Begin(true)
 	if err != nil {
 		return err
@@ -55,7 +56,7 @@ func (s *storage) StoreEvents(blockHeight uint64, timestamp int64, events []*pro
 	return tx.Commit()
 }
 
-func (s *storage) storeEvent(tx *bolt.Tx, blockHeight uint64, timestamp int64, event *protocol.IndexedEvent) error {
+func (s *storage) storeEvent(tx *bolt.Tx, blockHeight primitives.BlockHeight, timestamp primitives.TimestampNano, event *protocol.IndexedEvent) error {
 	tableName := getEventsBucketName(event.ContractName().String(), event.EventName())
 	eventsBucket, err := tx.CreateBucketIfNotExists([]byte(tableName))
 	if err != nil {
@@ -63,17 +64,13 @@ func (s *storage) storeEvent(tx *bolt.Tx, blockHeight uint64, timestamp int64, e
 	}
 
 	s.logger.Info("Storing event",
-		log.Int64("blockTimestamp", timestamp),
-		log.Uint64("blockHeight", blockHeight),
+		log.Int64("blockTimestamp", int64(timestamp)),
+		log.Uint64("blockHeight", uint64(blockHeight)),
 		log.Stringable("contractName", event.ContractName()),
 		log.String("eventName", event.EventName()),
 		log.String("arguments", fmt.Sprintf("%v", event.Arguments())))
 
-	if err != nil {
-		return err
-	}
-
-	return eventsBucket.Put(ToBytes(blockHeight), event.Raw())
+	return eventsBucket.Put(ToBytes(uint64(blockHeight)), event.Raw())
 }
 
 func (s *storage) GetEvents(filterQuery *FilterQuery) (events []*protocol.IndexedEvent, err error) {
@@ -95,7 +92,7 @@ func (s *storage) GetEvents(filterQuery *FilterQuery) (events []*protocol.Indexe
 	return
 }
 
-func (s *storage) GetBlockHeight() (value uint64) {
+func (s *storage) GetBlockHeight() (value primitives.BlockHeight) {
 	s.db.View(func(tx *bolt.Tx) error {
 		blocksBucket := tx.Bucket([]byte("blocks"))
 		if blocksBucket == nil {
@@ -103,7 +100,7 @@ func (s *storage) GetBlockHeight() (value uint64) {
 		}
 
 		blockHeightRaw, _ := blocksBucket.Cursor().Last()
-		value = ReadUint64(blockHeightRaw)
+		value = primitives.BlockHeight(ReadUint64(blockHeightRaw))
 
 		return nil
 	})
@@ -111,13 +108,13 @@ func (s *storage) GetBlockHeight() (value uint64) {
 	return
 }
 
-func (s *storage) storeBlockHeight(tx *bolt.Tx, blockHeight uint64, timestamp int64) (err error) {
+func (s *storage) storeBlockHeight(tx *bolt.Tx, blockHeight primitives.BlockHeight, timestamp primitives.TimestampNano) (err error) {
 	blocksBucket, err := tx.CreateBucketIfNotExists([]byte("blocks"))
 	if err != nil {
 		return err
 	}
 
-	return blocksBucket.Put(ToBytes(blockHeight), ToBytes(timestamp))
+	return blocksBucket.Put(ToBytes(uint64(blockHeight)), ToBytes(int64(timestamp)))
 }
 
 func (s *storage) Shutdown() (err error) {
