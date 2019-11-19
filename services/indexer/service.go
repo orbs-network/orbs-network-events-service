@@ -2,89 +2,73 @@ package indexer
 
 import (
 	"context"
-	"fmt"
-	"github.com/orbs-network/govnr"
-	"github.com/orbs-network/orbs-client-sdk-go/codec"
-	"github.com/orbs-network/orbs-client-sdk-go/orbs"
 	"github.com/orbs-network/orbs-network-events-service/config"
-	"github.com/orbs-network/orbs-network-events-service/events"
 	"github.com/orbs-network/orbs-network-events-service/services/storage"
+	"github.com/orbs-network/orbs-spec/types/go/protocol"
+	"github.com/orbs-network/orbs-spec/types/go/protocol/client"
+	"github.com/orbs-network/orbs-spec/types/go/services"
 	"github.com/orbs-network/scribe/log"
-	"time"
+	"github.com/pkg/errors"
 )
-
-type Indexer interface {
-	Start(ctx context.Context) error
-}
 
 type service struct {
 	cfg    *config.Config
 	logger log.Logger
 
-	supervisors []govnr.ShutdownWaiter
+	dbs map[uint32]storage.Storage
 }
 
-func NewIndexer(cfg *config.Config, logger log.Logger) Indexer {
+func NewIndexer(cfg *config.Config, logger log.Logger) (services.Indexer, error) {
+	serviceLogger := logger.WithTags(log.Service("http"))
+
+	dbs := make(map[uint32]storage.Storage)
+	for _, vcid := range cfg.VirtualChains {
+		db, err := storage.NewStorageForChain(serviceLogger, vcid, true)
+		if err != nil {
+			return nil, err
+		}
+		dbs[vcid] = db
+	}
+
 	return &service{
 		cfg:    cfg,
-		logger: logger.WithTags(log.Service("indexer")),
-	}
+		logger: logger,
+		dbs:    dbs,
+	}, nil
 }
 
-func (s *service) Start(ctx context.Context) error {
-	for _, vcid := range s.cfg.VirtualChains {
-		supervisor, err := s.indexVchain(ctx, vcid)
-		if err != nil {
-			return err
-		}
-		s.supervisors = append(s.supervisors, supervisor)
+func (s *service) GetEvents(ctx context.Context, input *services.GetEventsInput) (*services.GetEventsOutput, error) {
+	if input.ClientRequest().ContractName() == "" {
+		return nil, errors.New("contract name is required")
 	}
 
-	for _, supervisor := range s.supervisors {
-		supervisor.WaitUntilShutdown(ctx)
+	if names := input.ClientRequest().EventNameIterator(); names.HasNext() {
+		return nil, errors.New("event name is required")
 	}
 
-	return nil
-}
+	vcid := input.ClientRequest().VirtualChainId()
+	if vcid == 0 {
+		return nil, errors.New("virtual chain id is required")
+	}
 
-func (s *service) indexVchain(ctx context.Context, vcid uint32) (govnr.ShutdownWaiter, error) {
-	serviceLogger := s.logger.WithTags(log.Uint32("vcid", vcid))
+	db, found := s.dbs[uint32(vcid)]
+	if !found {
+		return nil, errors.New("virtual chain not found")
+	}
 
-	handle := govnr.Forever(ctx, fmt.Sprintf("vchain %d handler", vcid), config.NewErrorHandler(serviceLogger), func() {
-		client := orbs.NewClient(s.cfg.Endpoint, vcid, codec.NETWORK_TYPE_TEST_NET)
-		account, _ := orbs.CreateAccount()
-		db, err := storage.NewStorageForChain(serviceLogger, vcid, false)
-		defer db.Shutdown()
+	events, err := db.GetEvents(input.ClientRequest())
+	if err != nil {
+		return nil, err
+	}
 
-		if err != nil {
-			serviceLogger.Error("failed to access storage", log.Error(err))
-			return
-		}
+	var clientResponseEvents []*protocol.IndexedEventBuilder
+	for _, event := range events {
+		clientResponseEvents = append(clientResponseEvents, protocol.IndexedEventBuilderFromRaw(event.Raw()))
+	}
 
-		lastProcessedBlock := db.GetBlockHeight()
-		serviceLogger.Info("starting the sync process", log.Uint64("blockHeight", uint64(lastProcessedBlock)))
-
-		for {
-			time.Sleep(s.cfg.PollingInterval)
-
-			finalBlock, err := events.GetBlockHeight(client, account)
-			if err != nil {
-				serviceLogger.Error("failed to get last block height", log.Error(err))
-				return
-			}
-			if finalBlock <= lastProcessedBlock+1 {
-				continue
-			}
-
-			lastProcessedBlock, err = events.ProcessEvents(client, lastProcessedBlock+1, finalBlock, db.StoreEvents)
-			if err != nil {
-				serviceLogger.Error("failed to store events", log.Error(err))
-				return
-			}
-		}
-	})
-
-	supervisor := &govnr.TreeSupervisor{}
-	supervisor.Supervise(handle)
-	return supervisor, nil
+	return (&services.GetEventsOutputBuilder{
+		ClientResponse: &client.IndexerResponseBuilder{
+			Events: clientResponseEvents,
+		},
+	}).Build(), nil
 }
