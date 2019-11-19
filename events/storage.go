@@ -4,11 +4,19 @@ import (
 	"fmt"
 	"github.com/orbs-network/orbs-spec/types/go/primitives"
 	"github.com/orbs-network/orbs-spec/types/go/protocol"
+	"github.com/orbs-network/orbs-spec/types/go/protocol/client"
 	"github.com/orbs-network/scribe/log"
 	bolt "go.etcd.io/bbolt"
 	"strings"
 	"time"
 )
+
+type Storage interface {
+	StoreEvents(blockHeight primitives.BlockHeight, timestamp primitives.TimestampNano, events []*protocol.IndexedEvent) error
+	GetBlockHeight() primitives.BlockHeight
+	GetEvents(query *client.IndexerRequest) ([]*protocol.IndexedEvent, error)
+	Shutdown() error
+}
 
 type storage struct {
 	logger log.Logger
@@ -73,10 +81,11 @@ func (s *storage) storeEvent(tx *bolt.Tx, blockHeight primitives.BlockHeight, ti
 	return eventsBucket.Put(ToBytes(uint64(blockHeight)), event.Raw())
 }
 
-func (s *storage) GetEvents(filterQuery *FilterQuery) (events []*protocol.IndexedEvent, err error) {
+func (s *storage) GetEvents(filterQuery *client.IndexerRequest) (events []*protocol.IndexedEvent, err error) {
 	err = s.db.View(func(tx *bolt.Tx) error {
-		for _, eventName := range filterQuery.EventNames {
-			tableName := getEventsBucketName(filterQuery.ContractName, eventName)
+		for iterator := filterQuery.EventNameIterator(); iterator.HasNext(); {
+			eventName := iterator.NextEventName()
+			tableName := getEventsBucketName(filterQuery.ContractName().String(), eventName)
 			eventsBucket := tx.Bucket([]byte(tableName))
 
 			eventsBucket.ForEach(func(blockHeightRaw, indexedEventRaw []byte) error {

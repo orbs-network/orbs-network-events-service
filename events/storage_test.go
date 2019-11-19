@@ -4,6 +4,7 @@ import (
 	"github.com/orbs-network/orbs-network-events-service/config"
 	"github.com/orbs-network/orbs-spec/types/go/primitives"
 	"github.com/orbs-network/orbs-spec/types/go/protocol"
+	"github.com/orbs-network/orbs-spec/types/go/protocol/client"
 	"github.com/stretchr/testify/require"
 	"os"
 	"testing"
@@ -54,10 +55,10 @@ func TestStorage_StoreEvent(t *testing.T) {
 	blockHeight := storage.GetBlockHeight()
 	require.EqualValues(t, DEFAULT_BLOCK_HEIGHT, blockHeight)
 
-	eventList, err := storage.GetEvents(&FilterQuery{
-		ContractName: DEFAULT_EVENT.ContractName().String(),
-		EventNames:   []string{DEFAULT_EVENT.EventName()},
-	})
+	eventList, err := storage.GetEvents((&client.IndexerRequestBuilder{
+		ContractName: primitives.ContractName(DEFAULT_EVENT.ContractName().String()),
+		EventName:    []string{DEFAULT_EVENT.EventName()},
+	}).Build())
 	require.NoError(t, err)
 	require.Len(t, eventList, 1)
 	require.EqualValues(t, DEFAULT_EVENT.Raw(), eventList[0].Raw())
@@ -69,10 +70,10 @@ func TestStorage_StoreEvent(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, DEFAULT_BLOCK_HEIGHT+100, updatedBlockHeight)
 
-	eventList, err = storage.GetEvents(&FilterQuery{
-		ContractName: NEXT_EVENT.ContractName().String(),
-		EventNames:   []string{NEXT_EVENT.EventName()},
-	})
+	eventList, err = storage.GetEvents((&client.IndexerRequestBuilder{
+		ContractName: primitives.ContractName(DEFAULT_EVENT.ContractName().String()),
+		EventName:    []string{NEXT_EVENT.EventName()},
+	}).Build())
 	require.NoError(t, err)
 	require.Len(t, eventList, 2)
 }
