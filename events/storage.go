@@ -1,7 +1,6 @@
 package events
 
 import (
-	"fmt"
 	"github.com/orbs-network/orbs-spec/types/go/primitives"
 	"github.com/orbs-network/orbs-spec/types/go/protocol"
 	"github.com/orbs-network/orbs-spec/types/go/protocol/client"
@@ -75,8 +74,7 @@ func (s *storage) storeEvent(tx *bolt.Tx, blockHeight primitives.BlockHeight, ti
 		log.Int64("blockTimestamp", int64(timestamp)),
 		log.Uint64("blockHeight", uint64(blockHeight)),
 		log.Stringable("contractName", event.ContractName()),
-		log.String("eventName", event.EventName()),
-		log.String("arguments", fmt.Sprintf("%v", event.Arguments())))
+		log.String("eventName", event.EventName()))
 
 	return eventsBucket.Put(ToBytes(uint64(blockHeight)), event.Raw())
 }

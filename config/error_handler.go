@@ -10,7 +10,7 @@ type stdoutErrorer struct {
 }
 
 func (s *stdoutErrorer) Error(err error) {
-	println(err.Error())
+	s.logger.Error("supervised goroutine crashed", log.Error(err))
 }
 
 func NewErrorHandler(logger log.Logger) govnr.Errorer {
