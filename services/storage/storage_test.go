@@ -1,4 +1,4 @@
-package events
+package storage
 
 import (
 	"github.com/orbs-network/orbs-network-events-service/config"
@@ -46,7 +46,7 @@ func removeDB() {
 func TestStorage_StoreEvent(t *testing.T) {
 	removeDB()
 
-	storage, err := NewStorage(config.GetLogger(), DATA_SOURCE)
+	storage, err := NewStorage(config.GetLogger(), DATA_SOURCE, false)
 	require.NoError(t, err, "could not create new data source")
 
 	err = storage.StoreEvents(DEFAULT_BLOCK_HEIGHT, DEFAULT_TIME, []*protocol.IndexedEvent{DEFAULT_EVENT})

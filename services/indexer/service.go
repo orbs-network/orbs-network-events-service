@@ -8,6 +8,7 @@ import (
 	"github.com/orbs-network/orbs-client-sdk-go/orbs"
 	"github.com/orbs-network/orbs-network-events-service/config"
 	"github.com/orbs-network/orbs-network-events-service/events"
+	"github.com/orbs-network/orbs-network-events-service/services/storage"
 	"github.com/orbs-network/scribe/log"
 	"time"
 )
@@ -52,15 +53,15 @@ func (s *service) indexVchain(ctx context.Context, vcid uint32) (govnr.ShutdownW
 	handle := govnr.Forever(ctx, fmt.Sprintf("vchain %d handler", vcid), config.NewErrorHandler(serviceLogger), func() {
 		client := orbs.NewClient(s.cfg.Endpoint, vcid, codec.NETWORK_TYPE_TEST_NET)
 		account, _ := orbs.CreateAccount()
-		storage, err := events.NewStorage(serviceLogger, fmt.Sprintf("./data/vchain-%d.bolt", vcid))
-		defer storage.Shutdown()
+		db, err := storage.NewStorageForChain(serviceLogger, vcid, false)
+		defer db.Shutdown()
 
 		if err != nil {
 			serviceLogger.Error("failed to access storage", log.Error(err))
 			return
 		}
 
-		lastProcessedBlock := storage.GetBlockHeight()
+		lastProcessedBlock := db.GetBlockHeight()
 		serviceLogger.Info("starting the sync process", log.Uint64("blockHeight", uint64(lastProcessedBlock)))
 
 		for {
@@ -75,7 +76,7 @@ func (s *service) indexVchain(ctx context.Context, vcid uint32) (govnr.ShutdownW
 				continue
 			}
 
-			lastProcessedBlock, err = events.ProcessEvents(client, lastProcessedBlock+1, finalBlock, storage.StoreEvents)
+			lastProcessedBlock, err = events.ProcessEvents(client, lastProcessedBlock+1, finalBlock, db.StoreEvents)
 			if err != nil {
 				serviceLogger.Error("failed to store events", log.Error(err))
 				return

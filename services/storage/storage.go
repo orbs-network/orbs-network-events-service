@@ -1,6 +1,7 @@
-package events
+package storage
 
 import (
+	"fmt"
 	"github.com/orbs-network/orbs-spec/types/go/primitives"
 	"github.com/orbs-network/orbs-spec/types/go/protocol"
 	"github.com/orbs-network/orbs-spec/types/go/protocol/client"
@@ -22,10 +23,10 @@ type storage struct {
 	db     *bolt.DB
 }
 
-func NewStorage(logger log.Logger, dataSource string) (Storage, error) {
+func NewStorage(logger log.Logger, dataSource string, readOnly bool) (Storage, error) {
 	boltDb, err := bolt.Open(dataSource, 0600, &bolt.Options{
 		Timeout:  5 * time.Second,
-		ReadOnly: false,
+		ReadOnly: readOnly,
 	})
 	if err != nil {
 		return nil, err
@@ -35,6 +36,10 @@ func NewStorage(logger log.Logger, dataSource string) (Storage, error) {
 		logger,
 		boltDb,
 	}, nil
+}
+
+func NewStorageForChain(logger log.Logger, vcid uint32, readOnly bool) (Storage, error) {
+	return NewStorage(logger, fmt.Sprintf("./data/vchain-%d.bolt", vcid), readOnly)
 }
 
 func (s *storage) StoreEvents(blockHeight primitives.BlockHeight, timestamp primitives.TimestampNano, events []*protocol.IndexedEvent) error {
