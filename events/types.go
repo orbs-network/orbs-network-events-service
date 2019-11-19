@@ -1,6 +1,6 @@
 package events
 
-import "github.com/orbs-network/orbs-client-sdk-go/codec"
+import "github.com/orbs-network/orbs-spec/types/go/protocol"
 
 type StoredEvent struct {
 	ContractName string
@@ -23,8 +23,8 @@ type FilterQuery struct {
 }
 
 type Storage interface {
-	StoreEvents(blockHeight uint64, timestamp int64, event []*codec.Event) error
+	StoreEvents(blockHeight uint64, timestamp int64, events []*protocol.IndexedEvent) error
 	GetBlockHeight() uint64
-	GetEvents(query *FilterQuery) ([]*StoredEvent, error)
+	GetEvents(query *FilterQuery) ([]*protocol.IndexedEvent, error)
 	Shutdown() error
 }

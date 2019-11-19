@@ -2,7 +2,6 @@ package events
 
 import (
 	"fmt"
-	"github.com/orbs-network/orbs-client-sdk-go/codec"
 	"github.com/orbs-network/orbs-spec/types/go/protocol"
 	"github.com/orbs-network/scribe/log"
 	bolt "go.etcd.io/bbolt"
@@ -30,7 +29,7 @@ func NewStorage(logger log.Logger, dataSource string) (Storage, error) {
 	}, nil
 }
 
-func (s *storage) StoreEvents(blockHeight uint64, timestamp int64, events []*codec.Event) error {
+func (s *storage) StoreEvents(blockHeight uint64, timestamp int64, events []*protocol.IndexedEvent) error {
 	tx, err := s.db.Begin(true)
 	if err != nil {
 		return err
@@ -38,7 +37,7 @@ func (s *storage) StoreEvents(blockHeight uint64, timestamp int64, events []*cod
 
 	defer func() {
 		if err != nil {
-			println("rolling back!")
+			s.logger.Error("rolling back!")
 			tx.Rollback()
 		}
 	}()
@@ -56,52 +55,35 @@ func (s *storage) StoreEvents(blockHeight uint64, timestamp int64, events []*cod
 	return tx.Commit()
 }
 
-func (s *storage) storeEvent(tx *bolt.Tx, blockHeight uint64, timestamp int64, event *codec.Event) error {
-	tableName := getEventsBucketName(event.ContractName, event.EventName)
+func (s *storage) storeEvent(tx *bolt.Tx, blockHeight uint64, timestamp int64, event *protocol.IndexedEvent) error {
+	tableName := getEventsBucketName(event.ContractName().String(), event.EventName())
 	eventsBucket, err := tx.CreateBucketIfNotExists([]byte(tableName))
 	if err != nil {
 		return err
 	}
 
-	argumentsWithTimestamp := []interface{}{
-		uint64(timestamp),
-	}
-	argumentsWithTimestamp = append(argumentsWithTimestamp, event.Arguments...)
-	arguments, err := protocol.ArgumentArrayFromNatives(argumentsWithTimestamp)
-
 	s.logger.Info("Storing event",
 		log.Int64("blockTimestamp", timestamp),
 		log.Uint64("blockHeight", blockHeight),
-		log.String("contractName", event.ContractName),
-		log.String("eventName", event.EventName),
-		log.String("arguments", fmt.Sprintf("%v", event.Arguments)))
+		log.Stringable("contractName", event.ContractName()),
+		log.String("eventName", event.EventName()),
+		log.String("arguments", fmt.Sprintf("%v", event.Arguments())))
 
 	if err != nil {
 		return err
 	}
 
-	return eventsBucket.Put(ToBytes(blockHeight), arguments.Raw())
+	return eventsBucket.Put(ToBytes(blockHeight), event.Raw())
 }
 
-func (s *storage) GetEvents(filterQuery *FilterQuery) (events []*StoredEvent, err error) {
+func (s *storage) GetEvents(filterQuery *FilterQuery) (events []*protocol.IndexedEvent, err error) {
 	err = s.db.View(func(tx *bolt.Tx) error {
 		for _, eventName := range filterQuery.EventNames {
 			tableName := getEventsBucketName(filterQuery.ContractName, eventName)
 			eventsBucket := tx.Bucket([]byte(tableName))
 
-			eventsBucket.ForEach(func(blockHeightRaw, argumentsWithTimestampRaw []byte) error {
-				argumentsWithTimestamp, err := protocol.PackedOutputArgumentsToNatives(argumentsWithTimestampRaw)
-				if err != nil {
-					return err
-				}
-
-				events = append(events, &StoredEvent{
-					ContractName: filterQuery.ContractName,
-					EventName:    eventName,
-					BlockHeight:  ReadUint64(blockHeightRaw),
-					Timestamp:    int64(argumentsWithTimestamp[0].(uint64)),
-					Arguments:    argumentsWithTimestamp[1:],
-				})
+			eventsBucket.ForEach(func(blockHeightRaw, indexedEventRaw []byte) error {
+				events = append(events, protocol.IndexedEventReader(indexedEventRaw))
 
 				return nil
 			})
