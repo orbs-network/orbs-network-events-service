@@ -9,6 +9,7 @@ import (
 	"github.com/orbs-network/orbs-client-sdk-go/orbs"
 	"github.com/orbs-network/orbs-network-events-service/config"
 	"github.com/orbs-network/orbs-network-events-service/events"
+	"github.com/orbs-network/scribe/log"
 	"io/ioutil"
 	"time"
 )
@@ -20,6 +21,9 @@ func (s *stdoutErrorer) Error(err error) {
 }
 
 func main() {
+	logger := config.GetLogger()
+	logger.Info("Starting signer service")
+
 	configPath := flag.String("config", "./config.json", "path to config")
 	flag.Parse()
 
@@ -41,12 +45,14 @@ func main() {
 		handle := govnr.Forever(ctx, fmt.Sprintf("vchain %d handler", chainId), errorHandler, func() {
 			client := orbs.NewClient(cfg.Endpoint, chainId, codec.NETWORK_TYPE_TEST_NET)
 			account, _ := orbs.CreateAccount()
-			storage, err := events.NewStorage(fmt.Sprintf("./data/vchain-%d.bolt", chainId))
+			vchainLogger := logger.WithTags(log.Uint32("vcid", chainId))
+			storage, err := events.NewStorage(vchainLogger, fmt.Sprintf("./data/vchain-%d.bolt", chainId))
 			if err != nil {
+				logger.Error("failed to access storage", log.Error(err))
 				panic(err)
 			}
 
-			lastProcessedBlock := uint64(0)
+			lastProcessedBlock := storage.GetBlockHeight()
 
 			for {
 				time.Sleep(cfg.PollingInterval)

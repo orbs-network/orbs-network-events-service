@@ -24,7 +24,7 @@ type FilterQuery struct {
 
 type Storage interface {
 	StoreEvent(blockHeight uint64, timestamp int64, event *codec.Event) error
-	GetBlockHeight() (uint64, error)
+	GetBlockHeight() uint64
 	StoreBlockHeight(blockHeight uint64, timestamp int64) error
 	GetEvents(query *FilterQuery) ([]*StoredEvent, error)
 }

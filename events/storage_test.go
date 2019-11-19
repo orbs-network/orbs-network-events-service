@@ -2,6 +2,7 @@ package events
 
 import (
 	"github.com/orbs-network/orbs-client-sdk-go/codec"
+	"github.com/orbs-network/orbs-network-events-service/config"
 	"github.com/stretchr/testify/require"
 	"os"
 	"testing"
@@ -29,7 +30,7 @@ func removeDB() {
 func TestStorage_StoreEvent(t *testing.T) {
 	removeDB()
 
-	storage, err := NewStorage(DATA_SOURCE)
+	storage, err := NewStorage(config.GetLogger(), DATA_SOURCE)
 	require.NoError(t, err, "could not create new data source")
 
 	err = storage.StoreEvent(DEFAULT_BLOCK_HEIGHT, DEFAULT_TIME, DEFAULT_EVENT)
@@ -53,20 +54,19 @@ func TestStorage_StoreEvent(t *testing.T) {
 func TestStorage_StoreBlockHeight(t *testing.T) {
 	removeDB()
 
-	storage, err := NewStorage(DATA_SOURCE)
+	storage, err := NewStorage(config.GetLogger(), DATA_SOURCE)
 	require.NoError(t, err)
 
 	err = storage.StoreBlockHeight(DEFAULT_BLOCK_HEIGHT, DEFAULT_TIME)
 	require.NoError(t, err)
 
-	blockHeight, err := storage.GetBlockHeight()
-	require.NoError(t, err)
+	blockHeight := storage.GetBlockHeight()
 	require.EqualValues(t, DEFAULT_BLOCK_HEIGHT, blockHeight)
 
 	err = storage.StoreBlockHeight(DEFAULT_BLOCK_HEIGHT+100, DEFAULT_TIME+5000)
 	require.NoError(t, err)
 
-	updatedBlockHeight, err := storage.GetBlockHeight()
+	updatedBlockHeight := storage.GetBlockHeight()
 	require.NoError(t, err)
 	require.EqualValues(t, DEFAULT_BLOCK_HEIGHT+100, updatedBlockHeight)
 }

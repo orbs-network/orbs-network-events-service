@@ -1,30 +1,34 @@
 package events
 
 import (
+	"fmt"
 	"github.com/orbs-network/orbs-client-sdk-go/codec"
 	"github.com/orbs-network/orbs-spec/types/go/protocol"
+	"github.com/orbs-network/scribe/log"
 	bolt "go.etcd.io/bbolt"
 	"strings"
 	"time"
 )
 
 type storage struct {
-	boltDB *bolt.DB
+	logger log.Logger
+	db     *bolt.DB
 }
 
-func NewStorage(dataSource string) (Storage, error) {
-	boltDb, err := bolt.Open(dataSource, 0600, &bolt.Options{Timeout: 1 * time.Second})
+func NewStorage(logger log.Logger, dataSource string) (Storage, error) {
+	boltDb, err := bolt.Open(dataSource, 0600, &bolt.Options{Timeout: 3 * time.Second})
 	if err != nil {
 		return nil, err
 	}
 
 	return &storage{
+		logger,
 		boltDb,
 	}, nil
 }
 
 func (s *storage) StoreEvent(blockHeight uint64, timestamp int64, event *codec.Event) error {
-	tx, err := s.boltDB.Begin(true)
+	tx, err := s.db.Begin(true)
 	if err != nil {
 		return err
 	}
@@ -46,8 +50,14 @@ func (s *storage) StoreEvent(blockHeight uint64, timestamp int64, event *codec.E
 		uint64(timestamp),
 	}
 	argumentsWithTimestamp = append(argumentsWithTimestamp, event.Arguments...)
-
 	arguments, err := protocol.ArgumentArrayFromNatives(argumentsWithTimestamp)
+
+	s.logger.Info("Storing event",
+		log.Int64("blockTimestamp", timestamp),
+		log.Uint64("blockHeight", blockHeight),
+		log.String("contractName", event.ContractName),
+		log.String("eventName", event.EventName),
+		log.String("arguments", fmt.Sprintf("%v", event.Arguments)))
 	if err != nil {
 		return err
 	}
@@ -60,7 +70,7 @@ func (s *storage) StoreEvent(blockHeight uint64, timestamp int64, event *codec.E
 }
 
 func (s *storage) GetEvents(filterQuery *FilterQuery) (events []*StoredEvent, err error) {
-	err = s.boltDB.View(func(tx *bolt.Tx) error {
+	err = s.db.View(func(tx *bolt.Tx) error {
 		for _, eventName := range filterQuery.EventNames {
 			tableName := getEventsBucketName(filterQuery.ContractName, eventName)
 			eventsBucket := tx.Bucket([]byte(tableName))
@@ -89,9 +99,13 @@ func (s *storage) GetEvents(filterQuery *FilterQuery) (events []*StoredEvent, er
 	return
 }
 
-func (s *storage) GetBlockHeight() (value uint64, err error) {
-	err = s.boltDB.View(func(tx *bolt.Tx) error {
+func (s *storage) GetBlockHeight() (value uint64) {
+	s.db.View(func(tx *bolt.Tx) error {
 		blocksBucket := tx.Bucket([]byte("blocks"))
+		if blocksBucket == nil {
+			return nil
+		}
+
 		blockHeightRaw, _ := blocksBucket.Cursor().First()
 		value = ReadUint64(blockHeightRaw)
 
@@ -102,7 +116,7 @@ func (s *storage) GetBlockHeight() (value uint64, err error) {
 }
 
 func (s *storage) StoreBlockHeight(blockHeight uint64, timestamp int64) (err error) {
-	tx, err := s.boltDB.Begin(true)
+	tx, err := s.db.Begin(true)
 	if err != nil {
 		return err
 	}
