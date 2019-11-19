@@ -41,7 +41,7 @@ func main() {
 		handle := govnr.Forever(ctx, fmt.Sprintf("vchain %d handler", chainId), errorHandler, func() {
 			client := orbs.NewClient(cfg.Endpoint, chainId, codec.NETWORK_TYPE_TEST_NET)
 			account, _ := orbs.CreateAccount()
-			storage, err := events.NewStorage(fmt.Sprintf("./data/vchain-%d.sqlite3", chainId))
+			storage, err := events.NewStorage(fmt.Sprintf("./data/vchain-%d.bolt", chainId))
 			if err != nil {
 				panic(err)
 			}

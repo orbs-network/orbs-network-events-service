@@ -12,12 +12,11 @@ var DEFAULT_EVENT = &codec.Event{
 	ContractName: "SomeContract",
 	EventName:    "MovieRelease",
 	Arguments: []interface{}{
-		"Raising Arizona", "1987-03-06", "Nicolas Cage",
+		"Raising Arizona", uint32(1987), "Nicolas Cage",
 	},
 }
 
-const DATA_SOURCE = "test.sqlite3"
-const DATA_SOURCE_MODE = "?mode=rw"
+const DATA_SOURCE = "test.bolt"
 
 const DEFAULT_BLOCK_HEIGHT = uint64(1974)
 
@@ -25,13 +24,12 @@ var DEFAULT_TIME = time.Now().UnixNano()
 
 func removeDB() {
 	os.RemoveAll(DATA_SOURCE)
-	os.RemoveAll("test.bolt")
 }
 
 func TestStorage_StoreEvent(t *testing.T) {
 	removeDB()
 
-	storage, err := NewStorage(DATA_SOURCE + DATA_SOURCE_MODE)
+	storage, err := NewStorage(DATA_SOURCE)
 	require.NoError(t, err, "could not create new data source")
 
 	err = storage.StoreEvent(DEFAULT_BLOCK_HEIGHT, DEFAULT_TIME, DEFAULT_EVENT)
@@ -55,7 +53,7 @@ func TestStorage_StoreEvent(t *testing.T) {
 func TestStorage_StoreBlockHeight(t *testing.T) {
 	removeDB()
 
-	storage, err := NewStorage(DATA_SOURCE + DATA_SOURCE_MODE)
+	storage, err := NewStorage(DATA_SOURCE)
 	require.NoError(t, err)
 
 	err = storage.StoreBlockHeight(DEFAULT_BLOCK_HEIGHT, DEFAULT_TIME)
