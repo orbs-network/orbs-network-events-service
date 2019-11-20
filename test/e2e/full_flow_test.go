@@ -10,14 +10,9 @@ import (
 	"github.com/orbs-network/orbs-network-events-service/config"
 	"github.com/orbs-network/orbs-spec/types/go/protocol"
 	"github.com/stretchr/testify/require"
-	"os"
 	"testing"
 	"time"
 )
-
-func removeDB() {
-	os.RemoveAll("./vchain-42.bolt")
-}
 
 func TestFullFlow(t *testing.T) {
 	removeDB()

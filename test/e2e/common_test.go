@@ -6,11 +6,15 @@ import (
 	"github.com/orbs-network/orbs-client-sdk-go/orbs"
 	"github.com/orbs-network/orbs-spec/types/go/primitives"
 	"github.com/stretchr/testify/require"
-	"testing"
+	"os"
 	"time"
 )
 
-func deployEventEmitterContract(t *testing.T, client *orbs.OrbsClient, account *orbs.OrbsAccount) (contractName string, blockHeight primitives.BlockHeight) {
+func removeDB() {
+	os.RemoveAll("./vchain-42.bolt")
+}
+
+func deployEventEmitterContract(t require.TestingT, client *orbs.OrbsClient, account *orbs.OrbsAccount) (contractName string, blockHeight primitives.BlockHeight) {
 	code, err := orbs.ReadSourcesFromDir("./_contracts")
 	require.NoError(t, err)
 	contractName = fmt.Sprintf("EventEmitter%d", time.Now().UnixNano())
@@ -23,7 +27,7 @@ func deployEventEmitterContract(t *testing.T, client *orbs.OrbsClient, account *
 	return contractName, primitives.BlockHeight(res.BlockHeight)
 }
 
-func sendArizonaTransaction(t *testing.T, orbsClient *orbs.OrbsClient, account *orbs.OrbsAccount, contractName string) *codec.SendTransactionResponse {
+func sendArizonaTransaction(t require.TestingT, orbsClient *orbs.OrbsClient, account *orbs.OrbsAccount, contractName string) *codec.SendTransactionResponse {
 	arizonaTx, _, _ := orbsClient.CreateTransaction(account.PublicKey, account.PrivateKey, contractName, "release",
 		"Raising Arizona", uint32(1987), "Nicolas Cage")
 	arizonaRes, err := orbsClient.SendTransaction(arizonaTx)
@@ -33,7 +37,7 @@ func sendArizonaTransaction(t *testing.T, orbsClient *orbs.OrbsClient, account *
 	return arizonaRes
 }
 
-func sendVampireTransaction(t *testing.T, orbsClient *orbs.OrbsClient, account *orbs.OrbsAccount, contractName string) *codec.SendTransactionResponse {
+func sendVampireTransaction(t require.TestingT, orbsClient *orbs.OrbsClient, account *orbs.OrbsAccount, contractName string) *codec.SendTransactionResponse {
 	vampireTx, _, _ := orbsClient.CreateTransaction(account.PublicKey, account.PrivateKey, contractName, "release",
 		"Vampire's Kiss", uint32(1989), "Nicolas Cage")
 
