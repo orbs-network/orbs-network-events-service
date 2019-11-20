@@ -38,12 +38,7 @@ func TestFullFlow(t *testing.T) {
 	account, _ := orbs.CreateAccount()
 	contractName, _ := deployEventEmitterContract(t, orbsClient, account)
 
-	arizonaTx, _, _ := orbsClient.CreateTransaction(account.PublicKey, account.PrivateKey, contractName, "release",
-		"Raising Arizona", uint32(1987), "Nicolas Cage")
-
-	arizonaRes, err := orbsClient.SendTransaction(arizonaTx)
-	require.NoError(t, err)
-	require.EqualValues(t, codec.EXECUTION_RESULT_SUCCESS, arizonaRes.ExecutionResult)
+	sendArizonaTransaction(t, orbsClient, account, contractName)
 
 	require.Eventually(t, func() bool {
 		events, err := client.GetEvents(fmt.Sprintf("http://localhost:%d", server.Port()), client.GetEventsQuery{

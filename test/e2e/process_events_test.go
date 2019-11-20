@@ -16,19 +16,8 @@ func TestProcessEvents(t *testing.T) {
 	account, _ := orbs.CreateAccount()
 	contractName, startingBlock := deployEventEmitterContract(t, client, account)
 
-	arizonaTx, _, _ := client.CreateTransaction(account.PublicKey, account.PrivateKey, contractName, "release",
-		"Raising Arizona", uint32(1987), "Nicolas Cage")
-
-	arizonaRes, err := client.SendTransaction(arizonaTx)
-	require.NoError(t, err)
-	require.EqualValues(t, codec.EXECUTION_RESULT_SUCCESS, arizonaRes.ExecutionResult)
-
-	vampireTx, _, _ := client.CreateTransaction(account.PublicKey, account.PrivateKey, contractName, "release",
-		"Vampire's Kiss", uint32(1989), "Nicolas Cage")
-
-	vampireRes, err := client.SendTransaction(vampireTx)
-	require.NoError(t, err)
-	require.EqualValues(t, codec.EXECUTION_RESULT_SUCCESS, vampireRes.ExecutionResult)
+	arizonaRes := sendArizonaTransaction(t, client, account, contractName)
+	vampireRes := sendVampireTransaction(t, client, account, contractName)
 
 	blockHeight, err := events.GetBlockHeight(client, account)
 	require.NoError(t, err)
