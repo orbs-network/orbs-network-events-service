@@ -16,10 +16,8 @@ import (
 	"net"
 	"net/http"
 	"net/http/pprof"
-	"strings"
 	"time"
 
-	"github.com/orbs-network/orbs-spec/types/go/primitives"
 	"github.com/orbs-network/orbs-spec/types/go/protocol"
 	"github.com/orbs-network/orbs-spec/types/go/services"
 	"github.com/orbs-network/scribe/log"
@@ -38,9 +36,9 @@ type HttpServer struct {
 	httpServer *http.Server
 	router     *http.ServeMux
 
-	logger  log.Logger
-	indexer services.Indexer
-	config  *ServerConfig
+	logger log.Logger
+	apis   map[uint32]services.Indexer
+	config *ServerConfig
 
 	port int
 }
@@ -65,11 +63,11 @@ func (ln TcpKeepAliveListener) Accept() (net.Conn, error) {
 	return tc, nil
 }
 
-func NewHttpServer(ctx context.Context, cfg *ServerConfig, logger log.Logger, indexer services.Indexer) *HttpServer {
+func NewHttpServer(ctx context.Context, cfg *ServerConfig, logger log.Logger, apis map[uint32]services.Indexer) *HttpServer {
 	server := &HttpServer{
-		logger:  logger.WithTags(LogTag),
-		indexer: indexer,
-		config:  cfg,
+		logger: logger.WithTags(LogTag),
+		apis:   apis,
+		config: cfg,
 	}
 
 	if listener, err := server.listen(server.config.HttpAddress()); err != nil {
@@ -131,23 +129,9 @@ func wrapHandlerWithCORS(f func(w http.ResponseWriter, r *http.Request)) func(w 
 	}
 }
 
-func (s *HttpServer) wrapHandlerWithPublicApiChecker(f http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if s.indexer == nil {
-			w.WriteHeader(http.StatusServiceUnavailable)
-		} else {
-			f(w, r)
-		}
-	}
-}
-
 func (s *HttpServer) registerHttpHandler(router *http.ServeMux, urlPath string, withCORS bool, handler http.HandlerFunc) {
 	if withCORS {
 		handler = wrapHandlerWithCORS(handler)
-	}
-
-	if strings.HasPrefix(urlPath, "/api") {
-		handler = s.wrapHandlerWithPublicApiChecker(handler)
 	}
 
 	router.Handle(urlPath, handler)
@@ -156,7 +140,7 @@ func (s *HttpServer) registerHttpHandler(router *http.ServeMux, urlPath string, 
 func (s *HttpServer) createRouter() *http.ServeMux {
 	router := http.NewServeMux()
 
-	s.registerHttpHandler(router, "/api/v1/send-events", true, s.getEventsHandler)
+	s.registerHttpHandler(router, "/api/v1/get-events", true, s.getEventsHandler)
 	s.registerHttpHandler(router, "/robots.txt", false, s.robots)
 
 	router.Handle("/", http.HandlerFunc(wrapHandlerWithCORS(s.Index)))
@@ -218,10 +202,6 @@ func (s *HttpServer) writeMembuffResponse(w http.ResponseWriter, message membuff
 	if err != nil {
 		s.logger.Info("error writing response", log.Error(err))
 	}
-}
-
-func sprintfTimestamp(timestamp primitives.TimestampNano) string {
-	return time.Unix(0, int64(timestamp)).UTC().Format(time.RFC3339Nano)
 }
 
 func (s *HttpServer) writeErrorResponseAndLog(w http.ResponseWriter, m *httpErr) {

@@ -57,14 +57,28 @@ func (s *HttpServer) getEventsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := s.indexer.GetEvents(r.Context(), (&services.GetEventsInputBuilder{
-		ClientRequest: client.IndexerRequestBuilderFromRaw(bytes),
+	clientRequest := client.IndexerRequestBuilderFromRaw(bytes)
+	if err := validate(clientRequest.Build()); err != nil {
+		s.writeErrorResponseAndLog(w, err)
+		return
+	}
+
+	api, found := s.apis[uint32(clientRequest.VirtualChainId)]
+	if !found {
+		s.writeErrorResponseAndLog(w, &httpErr{
+			code:    404,
+			message: "vchain not found",
+		})
+		return
+	}
+
+	result, err := api.GetEvents(r.Context(), (&services.GetEventsInputBuilder{
+		ClientRequest: clientRequest,
 	}).Build())
 
-	if result != nil && result.ClientResponse != nil {
-		// FIXME http codes
-		s.writeMembuffResponse(w, result, 200, err)
-	} else {
+	if err != nil {
 		s.writeErrorResponseAndLog(w, &httpErr{http.StatusInternalServerError, log.Error(err), err.Error()})
+	} else {
+		s.writeMembuffResponse(w, result, 200, err)
 	}
 }

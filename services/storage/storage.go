@@ -38,8 +38,8 @@ func NewStorage(logger log.Logger, dataSource string, readOnly bool) (Storage, e
 	}, nil
 }
 
-func NewStorageForChain(logger log.Logger, vcid uint32, readOnly bool) (Storage, error) {
-	return NewStorage(logger, fmt.Sprintf("./data/vchain-%d.bolt", vcid), readOnly)
+func NewStorageForChain(logger log.Logger, dbPath string, vcid uint32, readOnly bool) (Storage, error) {
+	return NewStorage(logger, fmt.Sprintf("%s/vchain-%d.bolt", dbPath, vcid), readOnly)
 }
 
 func (s *storage) StoreEvents(blockHeight primitives.BlockHeight, timestamp primitives.TimestampNano, events []*protocol.IndexedEvent) error {

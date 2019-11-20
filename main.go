@@ -5,12 +5,13 @@ import (
 	"flag"
 	"github.com/orbs-network/orbs-network-events-service/boostrap"
 	"github.com/orbs-network/orbs-network-events-service/config"
+	"github.com/orbs-network/scribe/log"
 	"io/ioutil"
 )
 
 func main() {
 	logger := config.GetLogger()
-	logger.Info("Starting signer service")
+	logger.Info("starting indexer service")
 
 	configPath := flag.String("config", "./config.json", "path to config")
 	flag.Parse()
@@ -28,5 +29,11 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	boostrap.NewNode(ctx, cfg, logger)
+	server, err := boostrap.NewCluster(ctx, cfg, logger)
+	if err != nil {
+		logger.Error("failed to start the service", log.Error(err))
+		cancel()
+	} else {
+		server.WaitUntilShutdown(ctx)
+	}
 }

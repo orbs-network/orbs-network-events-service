@@ -9,11 +9,13 @@ type Config struct {
 	Endpoint        string
 	PollingInterval time.Duration
 	VirtualChains   []uint32
+	DB              string
 }
 
 var defaultConfig = Config{
 	PollingInterval: 2 * time.Second,
 	Endpoint:        "http://localhost:8080",
+	DB:              "./data",
 }
 
 func Parse(input []byte) (*Config, error) {
@@ -26,6 +28,10 @@ func Parse(input []byte) (*Config, error) {
 
 	if cfg.Endpoint == "" {
 		cfg.Endpoint = defaultConfig.Endpoint
+	}
+
+	if cfg.DB == "" {
+		cfg.DB = defaultConfig.DB
 	}
 
 	return cfg, err

@@ -20,48 +20,38 @@ type BackgroundIndexer interface {
 type service struct {
 	cfg    *config.Config
 	logger log.Logger
+	db     storage.Storage
 
-	supervisors []govnr.ShutdownWaiter
+	vcid       uint32
+	supervisor govnr.ShutdownWaiter
 }
 
-func NewBackgroundIndexer(cfg *config.Config, logger log.Logger) BackgroundIndexer {
+func NewBackgroundIndexer(cfg *config.Config, logger log.Logger, db storage.Storage, vcid uint32) BackgroundIndexer {
 	return &service{
 		cfg:    cfg,
 		logger: logger.WithTags(log.Service("indexer")),
+		vcid:   vcid,
+		db:     db,
 	}
 }
 
 func (s *service) Start(ctx context.Context) error {
-	for _, vcid := range s.cfg.VirtualChains {
-		supervisor, err := s.indexVchain(ctx, vcid)
-		if err != nil {
-			return err
-		}
-		s.supervisors = append(s.supervisors, supervisor)
-	}
-
-	for _, supervisor := range s.supervisors {
-		supervisor.WaitUntilShutdown(ctx)
+	_, err := s.indexVchain(ctx)
+	if err != nil {
+		return err
 	}
 
 	return nil
 }
 
-func (s *service) indexVchain(ctx context.Context, vcid uint32) (govnr.ShutdownWaiter, error) {
-	serviceLogger := s.logger.WithTags(log.Uint32("vcid", vcid))
+func (s *service) indexVchain(ctx context.Context) (govnr.ShutdownWaiter, error) {
+	serviceLogger := s.logger.WithTags(log.Uint32("vcid", s.vcid))
 
-	handle := govnr.Forever(ctx, fmt.Sprintf("vchain %d handler", vcid), config.NewErrorHandler(serviceLogger), func() {
-		client := orbs.NewClient(s.cfg.Endpoint, vcid, codec.NETWORK_TYPE_TEST_NET)
+	handle := govnr.Forever(ctx, fmt.Sprintf("vchain %d handler", s.vcid), config.NewErrorHandler(serviceLogger), func() {
+		client := orbs.NewClient(s.cfg.Endpoint, s.vcid, codec.NETWORK_TYPE_TEST_NET)
 		account, _ := orbs.CreateAccount()
-		db, err := storage.NewStorageForChain(serviceLogger, vcid, false)
-		defer db.Shutdown()
 
-		if err != nil {
-			serviceLogger.Error("failed to access storage", log.Error(err))
-			return
-		}
-
-		lastProcessedBlock := db.GetBlockHeight()
+		lastProcessedBlock := s.db.GetBlockHeight()
 		serviceLogger.Info("starting the sync process", log.Uint64("blockHeight", uint64(lastProcessedBlock)))
 
 		for {
@@ -76,7 +66,7 @@ func (s *service) indexVchain(ctx context.Context, vcid uint32) (govnr.ShutdownW
 				continue
 			}
 
-			lastProcessedBlock, err = events.ProcessEvents(client, lastProcessedBlock+1, finalBlock, db.StoreEvents)
+			lastProcessedBlock, err = events.ProcessEvents(client, lastProcessedBlock+1, finalBlock, s.db.StoreEvents)
 			if err != nil {
 				serviceLogger.Error("failed to store events", log.Error(err))
 				return
