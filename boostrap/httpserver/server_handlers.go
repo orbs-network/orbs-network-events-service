@@ -12,6 +12,7 @@ import (
 	"github.com/orbs-network/orbs-spec/types/go/protocol/client"
 	"github.com/orbs-network/orbs-spec/types/go/services"
 	"github.com/orbs-network/scribe/log"
+	"github.com/pkg/errors"
 	"net/http"
 )
 
@@ -57,28 +58,33 @@ func (s *HttpServer) getEventsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clientRequest := client.IndexerRequestBuilderFromRaw(bytes)
-	if err := validate(clientRequest.Build()); err != nil {
+	clientRequestRaw := client.IndexerRequestBuilderFromRaw(bytes)
+	if err := validate(clientRequestRaw.Build()); err != nil {
 		s.writeErrorResponseAndLog(w, err)
 		return
 	}
 
-	api, found := s.apis[uint32(clientRequest.VirtualChainId)]
+	clientRequest := client.IndexerRequestReader(bytes)
+
+	s.logger.Error("received request", log.Stringable("request", clientRequest))
+
+	api, found := s.apis[uint32(clientRequest.VirtualChainId())]
 	if !found {
 		s.writeErrorResponseAndLog(w, &httpErr{
-			code:    404,
-			message: "vchain not found",
+			code:     404,
+			logField: log.Error(errors.Errorf("vchain %d not found", clientRequest.VirtualChainId())),
+			message:  "vchain not found",
 		})
 		return
 	}
 
 	result, err := api.GetEvents(r.Context(), (&services.GetEventsInputBuilder{
-		ClientRequest: clientRequest,
+		ClientRequest: clientRequestRaw,
 	}).Build())
 
 	if err != nil {
 		s.writeErrorResponseAndLog(w, &httpErr{http.StatusInternalServerError, log.Error(err), err.Error()})
 	} else {
-		s.writeMembuffResponse(w, result, 200, err)
+		s.writeMembuffResponse(w, result.ClientResponse(), 200, err)
 	}
 }

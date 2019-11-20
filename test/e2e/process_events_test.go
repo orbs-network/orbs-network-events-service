@@ -1,7 +1,6 @@
 package e2e
 
 import (
-	"fmt"
 	"github.com/orbs-network/orbs-client-sdk-go/codec"
 	"github.com/orbs-network/orbs-client-sdk-go/orbs"
 	"github.com/orbs-network/orbs-network-events-service/events"
@@ -9,23 +8,13 @@ import (
 	"github.com/orbs-network/orbs-spec/types/go/protocol"
 	"github.com/stretchr/testify/require"
 	"testing"
-	"time"
 )
 
 func TestProcessEvents(t *testing.T) {
 	client := orbs.NewClient("http://localhost:8080", 42, codec.NETWORK_TYPE_TEST_NET)
 
-	code, err := orbs.ReadSourcesFromDir("./_contracts")
-	require.NoError(t, err)
-	contractName := fmt.Sprintf("EventEmitter%d", time.Now().UnixNano())
 	account, _ := orbs.CreateAccount()
-
-	deployTx, _, _ := client.CreateDeployTransaction(account.PublicKey, account.PrivateKey, contractName, orbs.PROCESSOR_TYPE_NATIVE, code...)
-	res, err := client.SendTransaction(deployTx)
-	require.NoError(t, err)
-	require.EqualValues(t, codec.EXECUTION_RESULT_SUCCESS, res.ExecutionResult)
-
-	startingBlock := primitives.BlockHeight(res.BlockHeight)
+	contractName, startingBlock := deployEventEmitterContract(t, client, account)
 
 	arizonaTx, _, _ := client.CreateTransaction(account.PublicKey, account.PrivateKey, contractName, "release",
 		"Raising Arizona", uint32(1987), "Nicolas Cage")
@@ -54,7 +43,7 @@ func TestProcessEvents(t *testing.T) {
 
 	require.Len(t, eventList, 2)
 
-	arizonaArgs, _ := protocol.PackedInputArgumentsFromNatives([]interface{}{
+	arizonaArgs, _ := protocol.ArgumentArrayFromNatives([]interface{}{
 		"Raising Arizona", uint32(1987), "Nicolas Cage",
 	})
 	require.EqualValues(t, (&protocol.IndexedEventBuilder{
@@ -63,10 +52,10 @@ func TestProcessEvents(t *testing.T) {
 		BlockHeight:     primitives.BlockHeight(arizonaRes.BlockHeight),
 		ExecutionResult: protocol.EXECUTION_RESULT_SUCCESS,
 		Timestamp:       primitives.TimestampNano(arizonaRes.BlockTimestamp.UnixNano()),
-		Arguments:       arizonaArgs,
+		Arguments:       arizonaArgs.Raw(),
 	}).Build(), eventList[0])
 
-	vampireArgs, _ := protocol.PackedInputArgumentsFromNatives([]interface{}{
+	vampireArgs, _ := protocol.ArgumentArrayFromNatives([]interface{}{
 		"Vampire's Kiss", uint32(1989), "Nicolas Cage",
 	})
 
@@ -76,6 +65,6 @@ func TestProcessEvents(t *testing.T) {
 		BlockHeight:     primitives.BlockHeight(vampireRes.BlockHeight),
 		ExecutionResult: protocol.EXECUTION_RESULT_SUCCESS,
 		Timestamp:       primitives.TimestampNano(vampireRes.BlockTimestamp.UnixNano()),
-		Arguments:       vampireArgs,
+		Arguments:       vampireArgs.Raw(),
 	}).Build(), eventList[1])
 }

@@ -6,6 +6,7 @@ import (
 	"github.com/orbs-network/orbs-spec/types/go/protocol"
 	"github.com/orbs-network/orbs-spec/types/go/protocol/client"
 	"github.com/orbs-network/scribe/log"
+	"github.com/pkg/errors"
 	bolt "go.etcd.io/bbolt"
 	"strings"
 	"time"
@@ -90,6 +91,9 @@ func (s *storage) GetEvents(filterQuery *client.IndexerRequest) (events []*proto
 			eventName := iterator.NextEventName()
 			tableName := getEventsBucketName(filterQuery.ContractName().String(), eventName)
 			eventsBucket := tx.Bucket([]byte(tableName))
+			if eventsBucket == nil {
+				return errors.Errorf("bucket %s not found", tableName)
+			}
 
 			eventsBucket.ForEach(func(blockHeightRaw, indexedEventRaw []byte) error {
 				events = append(events, protocol.IndexedEventReader(indexedEventRaw))

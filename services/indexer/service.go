@@ -33,7 +33,7 @@ func (s *service) GetEvents(ctx context.Context, input *services.GetEventsInput)
 		return nil, errors.New("contract name is required")
 	}
 
-	if names := input.ClientRequest().EventNameIterator(); names.HasNext() {
+	if names := input.ClientRequest().EventNameIterator(); !names.HasNext() {
 		return nil, errors.New("event name is required")
 	}
 

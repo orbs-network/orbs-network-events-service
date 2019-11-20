@@ -11,9 +11,11 @@ import (
 	"time"
 )
 
-var arizonaArgs, _ = protocol.PackedInputArgumentsFromNatives([]interface{}{
+var arizonaArgsNative = []interface{}{
 	"Raising Arizona", uint32(1987), "Nicolas Cage",
-})
+}
+
+var arizonaArgs, _ = protocol.ArgumentArrayFromNatives(arizonaArgsNative)
 
 var DEFAULT_EVENT = (&protocol.IndexedEventBuilder{
 	ContractName:    primitives.ContractName("SomeContract"),
@@ -21,7 +23,7 @@ var DEFAULT_EVENT = (&protocol.IndexedEventBuilder{
 	BlockHeight:     DEFAULT_BLOCK_HEIGHT,
 	ExecutionResult: protocol.EXECUTION_RESULT_SUCCESS,
 	Timestamp:       DEFAULT_TIME,
-	Arguments:       arizonaArgs,
+	Arguments:       arizonaArgs.Raw(),
 }).Build()
 
 var NEXT_EVENT = (&protocol.IndexedEventBuilder{
@@ -30,7 +32,7 @@ var NEXT_EVENT = (&protocol.IndexedEventBuilder{
 	BlockHeight:     DEFAULT_BLOCK_HEIGHT + 100,
 	ExecutionResult: protocol.EXECUTION_RESULT_SUCCESS,
 	Timestamp:       DEFAULT_TIME + 5000,
-	Arguments:       arizonaArgs,
+	Arguments:       arizonaArgs.Raw(),
 }).Build()
 
 const DATA_SOURCE = "test.bolt"
@@ -41,6 +43,37 @@ var DEFAULT_TIME = primitives.TimestampNano(time.Now().UnixNano())
 
 func removeDB() {
 	os.RemoveAll(DATA_SOURCE)
+}
+
+func TestArs(t *testing.T) {
+	t.Skip("does not work and does not plan to work")
+	arizonaArgsNative := []interface{}{
+		"Raising Arizona", uint32(1987), "Nicolas Cage",
+	}
+
+	packedArgs, err := protocol.PackedInputArgumentsFromNatives(arizonaArgsNative)
+	require.NoError(t, err)
+
+	args, err := protocol.PackedOutputArgumentsToNatives(packedArgs)
+	require.NoError(t, err)
+
+	require.EqualValues(t, arizonaArgsNative, args)
+}
+
+func TestArguments(t *testing.T) {
+	argArray, err := protocol.ArgumentArrayFromNatives(arizonaArgsNative)
+	require.NoError(t, err)
+	t.Log(argArray.String())
+
+	arr := protocol.ArgumentArrayReader(argArray.Raw())
+	for i := arr.ArgumentsIterator(); i.HasNext(); {
+		t.Log(i.NextArguments().String())
+	}
+
+	args, err := protocol.PackedOutputArgumentsToNatives(argArray.Raw())
+	require.NoError(t, err)
+
+	require.EqualValues(t, arizonaArgsNative, args)
 }
 
 func TestStorage_StoreEvent(t *testing.T) {
@@ -62,6 +95,9 @@ func TestStorage_StoreEvent(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, eventList, 1)
 	require.EqualValues(t, DEFAULT_EVENT.Raw(), eventList[0].Raw())
+
+	args, _ := protocol.PackedOutputArgumentsToNatives(eventList[0].Arguments())
+	require.EqualValues(t, arizonaArgsNative, args)
 
 	err = storage.StoreEvents(DEFAULT_BLOCK_HEIGHT+100, DEFAULT_TIME, []*protocol.IndexedEvent{NEXT_EVENT})
 	require.NoError(t, err, "could not store event")

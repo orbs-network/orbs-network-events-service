@@ -17,7 +17,7 @@ func GetBlockEvents(client *orbs.OrbsClient, height primitives.BlockHeight) (tim
 	timestamp = primitives.TimestampNano(res.BlockTimestamp.UnixNano())
 	for _, tx := range res.Transactions {
 		for i, event := range tx.OutputEvents {
-			arguments, err := protocol.PackedInputArgumentsFromNatives(event.Arguments)
+			arguments, err := protocol.ArgumentArrayFromNatives(event.Arguments)
 			if err != nil {
 				return 0, nil, err
 			}
@@ -33,7 +33,7 @@ func GetBlockEvents(client *orbs.OrbsClient, height primitives.BlockHeight) (tim
 				Timestamp:       timestamp, // tx time is irrelevant
 				Index:           uint32(i),
 				ExecutionResult: executionResult,
-				Arguments:       arguments,
+				Arguments:       arguments.Raw(),
 			}).Build()
 
 			events = append(events, indexedEvent)
