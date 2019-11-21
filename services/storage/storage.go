@@ -93,11 +93,29 @@ func (s *storage) GetEvents(filterQuery *types.IndexerRequest) (events []*types.
 				return errors.Errorf("bucket %s not found", tableName)
 			}
 
-			eventsBucket.ForEach(func(blockHeightRaw, indexedEventRaw []byte) error {
-				events = append(events, types.IndexedEventReader(indexedEventRaw))
+			if filterQuery.FromBlock() != 0 || filterQuery.ToBlock() != 0 {
+				cursor := eventsBucket.Cursor()
+				toBlock := filterQuery.ToBlock()
+				if toBlock == 0 {
+					toBlock = s.GetBlockHeight()
+				}
 
-				return nil
-			})
+				for i := filterQuery.FromBlock(); i <= toBlock; i++ {
+					blockHeightRaw, indexedEventRaw := cursor.Seek(ToBytes(i))
+					if blockHeightRaw == nil {
+						break
+					} else if ReadUint64(blockHeightRaw) <= filterQuery.ToBlock() {
+						events = append(events, types.IndexedEventReader(indexedEventRaw))
+					} else {
+						break
+					}
+				}
+			} else {
+				eventsBucket.ForEach(func(blockHeightRaw, indexedEventRaw []byte) error {
+					events = append(events, types.IndexedEventReader(indexedEventRaw))
+					return nil
+				})
+			}
 		}
 
 		return nil

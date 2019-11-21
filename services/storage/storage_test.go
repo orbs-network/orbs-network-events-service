@@ -132,3 +132,48 @@ func TestStorage_StoreEventUpdatesBlockHeight(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, DEFAULT_BLOCK_HEIGHT+100, updatedBlockHeight)
 }
+
+func TestStorage_GetEventsForNonExistentContract(t *testing.T) {
+	removeDB()
+
+	storage, err := NewStorage(config.GetLogger(), DATA_SOURCE, false)
+	require.NoError(t, err, "could not create new data source")
+
+	events, err := storage.GetEvents((&types.IndexerRequestBuilder{
+		ContractName: "Unbelievable",
+	}).Build())
+	require.NoError(t, err)
+	require.Len(t, events, 0)
+}
+
+func TestStorage_GetEventsFilterByBlockHeight(t *testing.T) {
+	removeDB()
+
+	storage, err := NewStorage(config.GetLogger(), DATA_SOURCE, false)
+	require.NoError(t, err, "could not create new data source")
+
+	err = storage.StoreEvents(0, 0, []*types.IndexedEvent{})
+	require.NoError(t, err, "could not store event")
+
+	err = storage.StoreEvents(DEFAULT_BLOCK_HEIGHT, DEFAULT_TIME, []*types.IndexedEvent{DEFAULT_EVENT})
+	require.NoError(t, err, "could not store event")
+
+	emptyEvents, err := storage.GetEvents((&types.IndexerRequestBuilder{
+		ContractName: DEFAULT_EVENT.ContractName(),
+		EventName:    []string{DEFAULT_EVENT.EventName()},
+		FromBlock:    0,
+		ToBlock:      DEFAULT_BLOCK_HEIGHT - 100,
+	}).Build())
+	require.NoError(t, err)
+	require.Len(t, emptyEvents, 0)
+
+	events, err := storage.GetEvents((&types.IndexerRequestBuilder{
+		ContractName: DEFAULT_EVENT.ContractName(),
+		EventName:    []string{DEFAULT_EVENT.EventName()},
+		FromBlock:    DEFAULT_BLOCK_HEIGHT,
+		ToBlock:      DEFAULT_BLOCK_HEIGHT + 100,
+	}).Build())
+	require.NoError(t, err)
+	require.Len(t, events, 1)
+	require.EqualValues(t, events[0].Raw(), DEFAULT_EVENT.Raw())
+}
