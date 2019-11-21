@@ -26,21 +26,21 @@ func NewIndexer(cfg *config.Config, logger log.Logger, db storage.Storage) (type
 	}, nil
 }
 
-func (s *service) GetEvents(ctx context.Context, input *types.GetEventsInput) (*types.GetEventsOutput, error) {
-	if input.ClientRequest().ContractName() == "" {
+func (s *service) GetEvents(ctx context.Context, input *types.IndexerRequest) (*types.IndexerResponse, error) {
+	if input.ContractName() == "" {
 		return nil, errors.New("contract name is required")
 	}
 
-	if names := input.ClientRequest().EventNameIterator(); !names.HasNext() {
+	if names := input.EventNameIterator(); !names.HasNext() {
 		return nil, errors.New("event name is required")
 	}
 
-	vcid := input.ClientRequest().VirtualChainId()
+	vcid := input.VirtualChainId()
 	if vcid == 0 {
 		return nil, errors.New("virtual chain id is required")
 	}
 
-	events, err := s.db.GetEvents(input.ClientRequest())
+	events, err := s.db.GetEvents(input)
 	if err != nil {
 		return nil, err
 	}
@@ -50,9 +50,7 @@ func (s *service) GetEvents(ctx context.Context, input *types.GetEventsInput) (*
 		clientResponseEvents = append(clientResponseEvents, types.IndexedEventBuilderFromRaw(event.Raw()))
 	}
 
-	return (&types.GetEventsOutputBuilder{
-		ClientResponse: &types.IndexerResponseBuilder{
-			Events: clientResponseEvents,
-		},
+	return (&types.IndexerResponseBuilder{
+		Events: clientResponseEvents,
 	}).Build(), nil
 }

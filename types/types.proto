@@ -51,15 +51,5 @@ message IndexerResponse {
 }
 
 service Indexer {
-    rpc GetEvents (GetEventsInput) returns (GetEventsOutput);
-}
-
-// FIXME remove
-message GetEventsInput {
-    IndexerRequest client_request = 1;
-}
-
-// FIXME remove
-message GetEventsOutput {
-    IndexerResponse client_response = 1;
+    rpc GetEvents (IndexerRequest) returns (IndexerResponse);
 }
