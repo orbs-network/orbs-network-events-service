@@ -177,3 +177,35 @@ func TestStorage_GetEventsFilterByBlockHeight(t *testing.T) {
 	require.Len(t, events, 1)
 	require.EqualValues(t, events[0].Raw(), DEFAULT_EVENT.Raw())
 }
+
+func TestStorage_GetEventsFilterByTimestamp(t *testing.T) {
+	removeDB()
+
+	storage, err := NewStorage(config.GetLogger(), DATA_SOURCE, false)
+	require.NoError(t, err, "could not create new data source")
+
+	err = storage.StoreEvents(0, 0, []*types.IndexedEvent{})
+	require.NoError(t, err, "could not store event")
+
+	err = storage.StoreEvents(DEFAULT_BLOCK_HEIGHT, DEFAULT_TIME, []*types.IndexedEvent{DEFAULT_EVENT})
+	require.NoError(t, err, "could not store event")
+
+	emptyEvents, err := storage.GetEvents((&types.IndexerRequestBuilder{
+		ContractName: DEFAULT_EVENT.ContractName(),
+		EventName:    []string{DEFAULT_EVENT.EventName()},
+		FromTime:     0,
+		ToTime:       DEFAULT_TIME - 100,
+	}).Build())
+	require.NoError(t, err)
+	require.Len(t, emptyEvents, 0)
+
+	events, err := storage.GetEvents((&types.IndexerRequestBuilder{
+		ContractName: DEFAULT_EVENT.ContractName(),
+		EventName:    []string{DEFAULT_EVENT.EventName()},
+		FromTime:     DEFAULT_TIME - 100,
+		ToTime:       DEFAULT_TIME + 100,
+	}).Build())
+	require.NoError(t, err)
+	require.Len(t, events, 1)
+	require.EqualValues(t, events[0].Raw(), DEFAULT_EVENT.Raw())
+}

@@ -84,6 +84,21 @@ func (s *storage) storeEvent(tx *bolt.Tx, blockHeight uint64, timestamp uint64, 
 }
 
 func (s *storage) GetEvents(filterQuery *types.IndexerRequest) (events []*types.IndexedEvent, err error) {
+	if filterQuery.FromTime() != 0 || filterQuery.ToTime() != 0 {
+		fromBlock := s.getBlockHeightByTimestamp(filterQuery.FromTime(), true)
+		toBlock := s.getBlockHeightByTimestamp(filterQuery.ToTime(), false)
+
+		newQuery := types.IndexerRequestReader(filterQuery.Raw())
+		newQuery.MutateFromTime(0)
+		newQuery.MutateToTime(0)
+		newQuery.MutateFromBlock(fromBlock)
+		newQuery.MutateToBlock(toBlock)
+
+		println("new from, to", fromBlock, toBlock)
+
+		return s.GetEvents(newQuery)
+	}
+
 	err = s.db.View(func(tx *bolt.Tx) error {
 		for iterator := filterQuery.EventNameIterator(); iterator.HasNext(); {
 			eventName := iterator.NextEventName()
@@ -124,15 +139,21 @@ func (s *storage) GetEvents(filterQuery *types.IndexerRequest) (events []*types.
 	return
 }
 
-func (s *storage) GetBlockHeight() (value uint64) {
+func (s *storage) GetBlockHeight() (blockHeight uint64) {
+	blockHeight, _ = s.getLastBlockHeightAndTimestamp()
+	return
+}
+
+func (s *storage) getLastBlockHeightAndTimestamp() (blockHeight uint64, timestamp uint64) {
 	s.db.View(func(tx *bolt.Tx) error {
 		blocksBucket := tx.Bucket([]byte("blocks"))
 		if blocksBucket == nil {
 			return nil
 		}
 
-		blockHeightRaw, _ := blocksBucket.Cursor().Last()
-		value = uint64(ReadUint64(blockHeightRaw))
+		timestampRaw, blockHeightRaw := blocksBucket.Cursor().Last()
+		blockHeight = ReadUint64(blockHeightRaw)
+		timestamp = ReadUint64(timestampRaw)
 
 		return nil
 	})
@@ -146,7 +167,40 @@ func (s *storage) storeBlockHeight(tx *bolt.Tx, blockHeight uint64, timestamp ui
 		return err
 	}
 
-	return blocksBucket.Put(ToBytes(uint64(blockHeight)), ToBytes(int64(timestamp)))
+	return blocksBucket.Put(ToBytes(int64(timestamp)), ToBytes(uint64(blockHeight)))
+}
+
+func (s *storage) getBlockHeightByTimestamp(timestamp uint64, forward bool) (blockHeight uint64) {
+	s.db.View(func(tx *bolt.Tx) error {
+		blocksBucket := tx.Bucket([]byte("blocks"))
+		if blocksBucket == nil {
+			return nil
+		}
+
+		lastBlockHeight, lastTimestamp := s.getLastBlockHeightAndTimestamp()
+		if timestamp > lastTimestamp {
+			blockHeight = lastBlockHeight
+			return nil
+		}
+
+		closestTimestampRaw, blockHeightRaw := blocksBucket.Cursor().Seek(ToBytes(timestamp))
+		closestTimestamp := ReadUint64(closestTimestampRaw)
+		blockHeight = ReadUint64(blockHeightRaw)
+
+		println("ts, closest match", timestamp, closestTimestamp, blockHeight)
+
+		if closestTimestamp != timestamp {
+			if forward {
+				// FIXME edge cases
+			} else {
+				blockHeight -= 1
+			}
+		}
+
+		return nil
+	})
+
+	return
 }
 
 func (s *storage) Shutdown() (err error) {
