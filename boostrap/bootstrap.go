@@ -4,7 +4,7 @@ import (
 	"context"
 	"github.com/orbs-network/orbs-network-events-service/boostrap/httpserver"
 	"github.com/orbs-network/orbs-network-events-service/config"
-	"github.com/orbs-network/orbs-spec/types/go/services"
+	"github.com/orbs-network/orbs-network-events-service/types"
 	"github.com/orbs-network/scribe/log"
 )
 
@@ -19,7 +19,7 @@ func NewCluster(ctx context.Context, cfg *config.Config, logger log.Logger) (*ht
 		nodes = append(nodes, node)
 	}
 
-	apis := make(map[uint32]services.Indexer)
+	apis := make(map[uint32]types.Indexer)
 	for _, node := range nodes {
 		apis[node.vcid] = node.api
 	}

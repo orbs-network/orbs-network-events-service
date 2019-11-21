@@ -4,9 +4,7 @@ import (
 	"context"
 	"github.com/orbs-network/orbs-network-events-service/config"
 	"github.com/orbs-network/orbs-network-events-service/services/storage"
-	"github.com/orbs-network/orbs-spec/types/go/protocol"
-	"github.com/orbs-network/orbs-spec/types/go/protocol/client"
-	"github.com/orbs-network/orbs-spec/types/go/services"
+	"github.com/orbs-network/orbs-network-events-service/types"
 	"github.com/orbs-network/scribe/log"
 	"github.com/pkg/errors"
 )
@@ -18,7 +16,7 @@ type service struct {
 	db storage.Storage
 }
 
-func NewIndexer(cfg *config.Config, logger log.Logger, db storage.Storage) (services.Indexer, error) {
+func NewIndexer(cfg *config.Config, logger log.Logger, db storage.Storage) (types.Indexer, error) {
 	serviceLogger := logger.WithTags(log.Service("http"))
 
 	return &service{
@@ -28,7 +26,7 @@ func NewIndexer(cfg *config.Config, logger log.Logger, db storage.Storage) (serv
 	}, nil
 }
 
-func (s *service) GetEvents(ctx context.Context, input *services.GetEventsInput) (*services.GetEventsOutput, error) {
+func (s *service) GetEvents(ctx context.Context, input *types.GetEventsInput) (*types.GetEventsOutput, error) {
 	if input.ClientRequest().ContractName() == "" {
 		return nil, errors.New("contract name is required")
 	}
@@ -47,13 +45,13 @@ func (s *service) GetEvents(ctx context.Context, input *services.GetEventsInput)
 		return nil, err
 	}
 
-	var clientResponseEvents []*protocol.IndexedEventBuilder
+	var clientResponseEvents []*types.IndexedEventBuilder
 	for _, event := range events {
-		clientResponseEvents = append(clientResponseEvents, protocol.IndexedEventBuilderFromRaw(event.Raw()))
+		clientResponseEvents = append(clientResponseEvents, types.IndexedEventBuilderFromRaw(event.Raw()))
 	}
 
-	return (&services.GetEventsOutputBuilder{
-		ClientResponse: &client.IndexerResponseBuilder{
+	return (&types.GetEventsOutputBuilder{
+		ClientResponse: &types.IndexerResponseBuilder{
 			Events: clientResponseEvents,
 		},
 	}).Build(), nil

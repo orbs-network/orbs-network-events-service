@@ -4,7 +4,7 @@ import (
 	"github.com/orbs-network/orbs-client-sdk-go/codec"
 	"github.com/orbs-network/orbs-client-sdk-go/orbs"
 	"github.com/orbs-network/orbs-network-events-service/events"
-	"github.com/orbs-network/orbs-spec/types/go/primitives"
+	"github.com/orbs-network/orbs-network-events-service/types"
 	"github.com/orbs-network/orbs-spec/types/go/protocol"
 	"github.com/stretchr/testify/require"
 	"testing"
@@ -22,8 +22,8 @@ func TestProcessEvents(t *testing.T) {
 	blockHeight, err := events.GetBlockHeight(client, account)
 	require.NoError(t, err)
 
-	var eventList []*protocol.IndexedEvent
-	lastProcessedBlock, err := events.ProcessEvents(client, startingBlock, blockHeight, func(blockHeight primitives.BlockHeight, timestamp primitives.TimestampNano, list []*protocol.IndexedEvent) error {
+	var eventList []*types.IndexedEvent
+	lastProcessedBlock, err := events.ProcessEvents(client, startingBlock, blockHeight, func(blockHeight uint64, timestamp uint64, list []*types.IndexedEvent) error {
 		eventList = append(eventList, list...)
 		return nil
 	})
@@ -35,12 +35,12 @@ func TestProcessEvents(t *testing.T) {
 	arizonaArgs, _ := protocol.ArgumentArrayFromNatives([]interface{}{
 		"Raising Arizona", uint32(1987), "Nicolas Cage",
 	})
-	require.EqualValues(t, (&protocol.IndexedEventBuilder{
-		ContractName:    primitives.ContractName(contractName),
+	require.EqualValues(t, (&types.IndexedEventBuilder{
+		ContractName:    contractName,
 		EventName:       "MovieRelease",
-		BlockHeight:     primitives.BlockHeight(arizonaRes.BlockHeight),
-		ExecutionResult: protocol.EXECUTION_RESULT_SUCCESS,
-		Timestamp:       primitives.TimestampNano(arizonaRes.BlockTimestamp.UnixNano()),
+		BlockHeight:     uint64(arizonaRes.BlockHeight),
+		ExecutionResult: types.EXECUTION_RESULT_SUCCESS,
+		Timestamp:       uint64(arizonaRes.BlockTimestamp.UnixNano()),
 		Arguments:       arizonaArgs.Raw(),
 	}).Build(), eventList[0])
 
@@ -48,12 +48,12 @@ func TestProcessEvents(t *testing.T) {
 		"Vampire's Kiss", uint32(1989), "Nicolas Cage",
 	})
 
-	require.EqualValues(t, (&protocol.IndexedEventBuilder{
-		ContractName:    primitives.ContractName(contractName),
+	require.EqualValues(t, (&types.IndexedEventBuilder{
+		ContractName:    contractName,
 		EventName:       "MovieRelease",
-		BlockHeight:     primitives.BlockHeight(vampireRes.BlockHeight),
-		ExecutionResult: protocol.EXECUTION_RESULT_SUCCESS,
-		Timestamp:       primitives.TimestampNano(vampireRes.BlockTimestamp.UnixNano()),
+		BlockHeight:     uint64(vampireRes.BlockHeight),
+		ExecutionResult: types.EXECUTION_RESULT_SUCCESS,
+		Timestamp:       uint64(vampireRes.BlockTimestamp.UnixNano()),
 		Arguments:       vampireArgs.Raw(),
 	}).Build(), eventList[1])
 }

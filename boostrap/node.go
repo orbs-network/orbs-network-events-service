@@ -6,7 +6,7 @@ import (
 	"github.com/orbs-network/orbs-network-events-service/services/background"
 	"github.com/orbs-network/orbs-network-events-service/services/indexer"
 	"github.com/orbs-network/orbs-network-events-service/services/storage"
-	"github.com/orbs-network/orbs-spec/types/go/services"
+	"github.com/orbs-network/orbs-network-events-service/types"
 	"github.com/orbs-network/scribe/log"
 )
 
@@ -15,7 +15,7 @@ type Node struct {
 
 	db  storage.Storage
 	bg  background.BackgroundIndexer
-	api services.Indexer
+	api types.Indexer
 }
 
 func NewNode(ctx context.Context, cfg *config.Config, logger log.Logger, vcid uint32) (*Node, error) {

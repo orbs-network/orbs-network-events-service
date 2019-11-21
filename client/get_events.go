@@ -3,16 +3,14 @@ package client
 import (
 	"bytes"
 	"fmt"
-	"github.com/orbs-network/orbs-spec/types/go/primitives"
-	"github.com/orbs-network/orbs-spec/types/go/protocol"
-	"github.com/orbs-network/orbs-spec/types/go/protocol/client"
+	"github.com/orbs-network/orbs-network-events-service/types"
 	"github.com/pkg/errors"
 	"io/ioutil"
 	"net/http"
 )
 
 type GetEventsQuery struct {
-	VirtualChainId uint64
+	VirtualChainId uint32
 	ContractName   string
 	EventName      []string
 
@@ -23,15 +21,15 @@ type GetEventsQuery struct {
 	ToTime   int64
 }
 
-func GetEvents(endpoint string, query GetEventsQuery) (events []*protocol.IndexedEvent, err error) {
-	requestBody := (&client.IndexerRequestBuilder{
-		VirtualChainId: primitives.VirtualChainId(query.VirtualChainId),
-		ContractName:   primitives.ContractName(query.ContractName),
+func GetEvents(endpoint string, query GetEventsQuery) (events []*types.IndexedEvent, err error) {
+	requestBody := (&types.IndexerRequestBuilder{
+		VirtualChainId: query.VirtualChainId,
+		ContractName:   query.ContractName,
 		EventName:      query.EventName,
-		FromBlock:      primitives.BlockHeight(query.FromBlock),
-		ToBlock:        primitives.BlockHeight(query.ToBlock),
-		FromTime:       primitives.TimestampNano(query.FromTime),
-		ToTime:         primitives.TimestampNano(query.ToTime),
+		FromBlock:      uint64(query.FromBlock),
+		ToBlock:        uint64(query.ToBlock),
+		FromTime:       uint64(query.FromTime),
+		ToTime:         uint64(query.ToTime),
 	}).Build().Raw()
 
 	res, err := http.Post(fmt.Sprintf("%s/api/v1/get-events", endpoint), "application/membuffers", bytes.NewReader(requestBody))
@@ -49,7 +47,7 @@ func GetEvents(endpoint string, query GetEventsQuery) (events []*protocol.Indexe
 		return nil, err
 	}
 
-	indexerResponse := client.IndexerResponseReader(data)
+	indexerResponse := types.IndexerResponseReader(data)
 	for i := indexerResponse.EventsIterator(); i.HasNext(); {
 		events = append(events, i.NextEvents())
 	}

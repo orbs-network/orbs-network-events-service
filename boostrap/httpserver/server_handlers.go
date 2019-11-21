@@ -9,8 +9,7 @@ package httpserver
 import (
 	"encoding/json"
 	"github.com/orbs-network/orbs-network-events-service/config"
-	"github.com/orbs-network/orbs-spec/types/go/protocol/client"
-	"github.com/orbs-network/orbs-spec/types/go/services"
+	"github.com/orbs-network/orbs-network-events-service/types"
 	"github.com/orbs-network/scribe/log"
 	"github.com/pkg/errors"
 	"net/http"
@@ -58,13 +57,13 @@ func (s *HttpServer) getEventsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clientRequestRaw := client.IndexerRequestBuilderFromRaw(bytes)
+	clientRequestRaw := types.IndexerRequestBuilderFromRaw(bytes)
 	if err := validate(clientRequestRaw.Build()); err != nil {
 		s.writeErrorResponseAndLog(w, err)
 		return
 	}
 
-	clientRequest := client.IndexerRequestReader(bytes)
+	clientRequest := types.IndexerRequestReader(bytes)
 
 	s.logger.Error("received request", log.Stringable("request", clientRequest))
 
@@ -78,7 +77,7 @@ func (s *HttpServer) getEventsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := api.GetEvents(r.Context(), (&services.GetEventsInputBuilder{
+	result, err := api.GetEvents(r.Context(), (&types.GetEventsInputBuilder{
 		ClientRequest: clientRequestRaw,
 	}).Build())
 

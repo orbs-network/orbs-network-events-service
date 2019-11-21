@@ -3,18 +3,18 @@ package events
 import (
 	"github.com/orbs-network/orbs-client-sdk-go/codec"
 	"github.com/orbs-network/orbs-client-sdk-go/orbs"
-	"github.com/orbs-network/orbs-spec/types/go/primitives"
+	"github.com/orbs-network/orbs-network-events-service/types"
 	"github.com/orbs-network/orbs-spec/types/go/protocol"
 	"github.com/pkg/errors"
 )
 
-func GetBlockEvents(client *orbs.OrbsClient, height primitives.BlockHeight) (timestamp primitives.TimestampNano, events []*protocol.IndexedEvent, err error) {
+func GetBlockEvents(client *orbs.OrbsClient, height uint64) (timestamp uint64, events []*types.IndexedEvent, err error) {
 	res, err := client.GetBlock(uint64(height))
 	if err != nil {
 		return
 	}
 
-	timestamp = primitives.TimestampNano(res.BlockTimestamp.UnixNano())
+	timestamp = uint64(res.BlockTimestamp.UnixNano())
 	for _, tx := range res.Transactions {
 		for i, event := range tx.OutputEvents {
 			arguments, err := protocol.ArgumentArrayFromNatives(event.Arguments)
@@ -26,10 +26,10 @@ func GetBlockEvents(client *orbs.OrbsClient, height primitives.BlockHeight) (tim
 				return 0, nil, err
 			}
 
-			indexedEvent := (&protocol.IndexedEventBuilder{
-				ContractName:    primitives.ContractName(event.ContractName),
+			indexedEvent := (&types.IndexedEventBuilder{
+				ContractName:    event.ContractName,
 				EventName:       event.EventName,
-				BlockHeight:     primitives.BlockHeight(height),
+				BlockHeight:     uint64(height),
 				Timestamp:       timestamp, // tx time is irrelevant
 				Index:           uint32(i),
 				ExecutionResult: executionResult,
@@ -43,7 +43,7 @@ func GetBlockEvents(client *orbs.OrbsClient, height primitives.BlockHeight) (tim
 	return
 }
 
-func decodeExecutionResult(input codec.ExecutionResult) (protocol.ExecutionResult, error) {
+func decodeExecutionResult(input codec.ExecutionResult) (types.ExecutionResult, error) {
 	switch input {
 	case codec.EXECUTION_RESULT_SUCCESS:
 		return 1, nil

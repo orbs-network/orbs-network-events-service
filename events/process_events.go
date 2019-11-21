@@ -2,13 +2,12 @@ package events
 
 import (
 	"github.com/orbs-network/orbs-client-sdk-go/orbs"
-	"github.com/orbs-network/orbs-spec/types/go/primitives"
-	"github.com/orbs-network/orbs-spec/types/go/protocol"
+	"github.com/orbs-network/orbs-network-events-service/types"
 )
 
-type EventProcessingCallback func(blockHeight primitives.BlockHeight, timestamp primitives.TimestampNano, eventList []*protocol.IndexedEvent) error
+type EventProcessingCallback func(blockHeight uint64, timestamp uint64, eventList []*types.IndexedEvent) error
 
-func ProcessEvents(client *orbs.OrbsClient, start primitives.BlockHeight, end primitives.BlockHeight, callback EventProcessingCallback) (primitives.BlockHeight, error) {
+func ProcessEvents(client *orbs.OrbsClient, start uint64, end uint64, callback EventProcessingCallback) (uint64, error) {
 	for blockHeight := start; blockHeight <= end; blockHeight++ {
 		timestamp, events, err := GetBlockEvents(client, blockHeight)
 		if err != nil {

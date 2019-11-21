@@ -12,6 +12,7 @@ import (
 	"github.com/orbs-network/govnr"
 	"github.com/orbs-network/membuffers/go"
 	"github.com/orbs-network/orbs-network-events-service/config"
+	"github.com/orbs-network/orbs-network-events-service/types"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -19,7 +20,6 @@ import (
 	"time"
 
 	"github.com/orbs-network/orbs-spec/types/go/protocol"
-	"github.com/orbs-network/orbs-spec/types/go/services"
 	"github.com/orbs-network/scribe/log"
 )
 
@@ -37,7 +37,7 @@ type HttpServer struct {
 	router     *http.ServeMux
 
 	logger log.Logger
-	apis   map[uint32]services.Indexer
+	apis   map[uint32]types.Indexer
 	config *ServerConfig
 
 	port int
@@ -63,7 +63,7 @@ func (ln TcpKeepAliveListener) Accept() (net.Conn, error) {
 	return tc, nil
 }
 
-func NewHttpServer(ctx context.Context, cfg *ServerConfig, logger log.Logger, apis map[uint32]services.Indexer) *HttpServer {
+func NewHttpServer(ctx context.Context, cfg *ServerConfig, logger log.Logger, apis map[uint32]types.Indexer) *HttpServer {
 	server := &HttpServer{
 		logger: logger.WithTags(LogTag),
 		apis:   apis,
