@@ -57,10 +57,15 @@ message IndexerRequest {
 
     uint64 from_time = 9;
     uint64 to_time = 10;
-}
 
+    repeated bytes filters = 11;
+}
 ```
 
+`filters` is standard `protocol.ArgumentsArray` that currently only supports direct matches (logical `&&`):
+
+* filter `["Rising Arizona"]` is going to match all events that have first event argument equal to string `Rising Arizona`
+* filter `[[], [uint32(1987)]]` will match all events that have second argument equal to `uint32(1987)`
 
 ### Response
 

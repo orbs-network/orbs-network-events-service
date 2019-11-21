@@ -44,21 +44,6 @@ func removeDB() {
 	os.RemoveAll(DATA_SOURCE)
 }
 
-func TestArs(t *testing.T) {
-	t.Skip("does not work and does not plan to work")
-	arizonaArgsNative := []interface{}{
-		"Raising Arizona", uint32(1987), "Nicolas Cage",
-	}
-
-	packedArgs, err := protocol.PackedInputArgumentsFromNatives(arizonaArgsNative)
-	require.NoError(t, err)
-
-	args, err := protocol.PackedOutputArgumentsToNatives(packedArgs)
-	require.NoError(t, err)
-
-	require.EqualValues(t, arizonaArgsNative, args)
-}
-
 func TestArguments(t *testing.T) {
 	argArray, err := protocol.ArgumentArrayFromNatives(arizonaArgsNative)
 	require.NoError(t, err)
@@ -92,6 +77,7 @@ func TestStorage_StoreEvent(t *testing.T) {
 		EventName:    []string{DEFAULT_EVENT.EventName()},
 	}).Build())
 	require.NoError(t, err)
+
 	require.Len(t, eventList, 1)
 	require.EqualValues(t, DEFAULT_EVENT.Raw(), eventList[0].Raw())
 
@@ -204,6 +190,41 @@ func TestStorage_GetEventsFilterByTimestamp(t *testing.T) {
 		EventName:    []string{DEFAULT_EVENT.EventName()},
 		FromTime:     DEFAULT_TIME - 100,
 		ToTime:       DEFAULT_TIME + 100,
+	}).Build())
+	require.NoError(t, err)
+	require.Len(t, events, 1)
+	require.EqualValues(t, events[0].Raw(), DEFAULT_EVENT.Raw())
+}
+
+func TestStorage_GetEventsFilterWithFieldMatching(t *testing.T) {
+	removeDB()
+
+	storage, err := NewStorage(config.GetLogger(), DATA_SOURCE, false)
+	require.NoError(t, err, "could not create new data source")
+
+	err = storage.StoreEvents(DEFAULT_BLOCK_HEIGHT, DEFAULT_TIME, []*types.IndexedEvent{DEFAULT_EVENT})
+	require.NoError(t, err, "could not store event")
+
+	vampireFilter, _ := protocol.ArgumentArrayFromNatives([]interface{}{"Vampire's Kill"})
+
+	emptyEvents, err := storage.GetEvents((&types.IndexerRequestBuilder{
+		ContractName: DEFAULT_EVENT.ContractName(),
+		EventName:    []string{DEFAULT_EVENT.EventName()},
+		Filters: [][]byte{
+			vampireFilter.Raw(),
+		},
+	}).Build())
+	require.NoError(t, err)
+	require.Len(t, emptyEvents, 0)
+
+	arizonaFilter, _ := protocol.ArgumentArrayFromNatives([]interface{}{"Raising Arizona"})
+
+	events, err := storage.GetEvents((&types.IndexerRequestBuilder{
+		ContractName: DEFAULT_EVENT.ContractName(),
+		EventName:    []string{DEFAULT_EVENT.EventName()},
+		Filters: [][]byte{
+			arizonaFilter.Raw(),
+		},
 	}).Build())
 	require.NoError(t, err)
 	require.Len(t, events, 1)

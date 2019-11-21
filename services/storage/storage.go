@@ -1,8 +1,10 @@
 package storage
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/orbs-network/orbs-network-events-service/types"
+	"github.com/orbs-network/orbs-spec/types/go/protocol"
 	"github.com/orbs-network/scribe/log"
 	"github.com/pkg/errors"
 	bolt "go.etcd.io/bbolt"
@@ -94,9 +96,12 @@ func (s *storage) GetEvents(filterQuery *types.IndexerRequest) (events []*types.
 		newQuery.MutateFromBlock(fromBlock)
 		newQuery.MutateToBlock(toBlock)
 
-		println("new from, to", fromBlock, toBlock)
-
 		return s.GetEvents(newQuery)
+	}
+
+	var filters []*protocol.ArgumentArray
+	for i := filterQuery.FiltersIterator(); i.HasNext(); {
+		filters = append(filters, protocol.ArgumentArrayReader(i.NextFilters()))
 	}
 
 	err = s.db.View(func(tx *bolt.Tx) error {
@@ -115,19 +120,26 @@ func (s *storage) GetEvents(filterQuery *types.IndexerRequest) (events []*types.
 					toBlock = s.GetBlockHeight()
 				}
 
+				// FIXME lookups
 				for i := filterQuery.FromBlock(); i <= toBlock; i++ {
 					blockHeightRaw, indexedEventRaw := cursor.Seek(ToBytes(i))
 					if blockHeightRaw == nil {
 						break
 					} else if ReadUint64(blockHeightRaw) <= filterQuery.ToBlock() {
-						events = append(events, types.IndexedEventReader(indexedEventRaw))
+						event := types.IndexedEventReader(indexedEventRaw)
+						if matchEvent(event, filters) {
+							events = append(events, event)
+						}
 					} else {
 						break
 					}
 				}
 			} else {
 				eventsBucket.ForEach(func(blockHeightRaw, indexedEventRaw []byte) error {
-					events = append(events, types.IndexedEventReader(indexedEventRaw))
+					event := types.IndexedEventReader(indexedEventRaw)
+					if matchEvent(event, filters) {
+						events = append(events, event)
+					}
 					return nil
 				})
 			}
@@ -187,8 +199,6 @@ func (s *storage) getBlockHeightByTimestamp(timestamp uint64, forward bool) (blo
 		closestTimestamp := ReadUint64(closestTimestampRaw)
 		blockHeight = ReadUint64(blockHeightRaw)
 
-		println("ts, closest match", timestamp, closestTimestamp, blockHeight)
-
 		if closestTimestamp != timestamp {
 			if forward {
 				// FIXME edge cases
@@ -219,4 +229,31 @@ func (s *storage) Shutdown() (err error) {
 
 func getEventsBucketName(contractName string, eventName string) string {
 	return strings.Join([]string{"events", contractName, eventName}, ".")
+}
+
+func matchEvent(event *types.IndexedEvent, filters []*protocol.ArgumentArray) bool {
+	filtersCount := len(filters)
+	if filtersCount == 0 {
+		return true
+	}
+
+	eventArguments := protocol.ArgumentArrayReader(event.Arguments())
+	i := 0
+	for argumentsIterator := eventArguments.ArgumentsIterator(); argumentsIterator.HasNext(); i++ {
+		arg := argumentsIterator.NextArguments()
+
+		if filtersCount >= i+1 {
+			filter := filters[i]
+			// Only direct matches
+			if filter.ArgumentsIterator().HasNext() {
+				filterArg0 := filter.ArgumentsIterator().NextArguments()
+				println("matching", arg.String(), "against", filterArg0.String())
+				if match := bytes.Equal(arg.Raw(), filterArg0.Raw()); match {
+					return true
+				}
+			}
+		}
+	}
+
+	return false
 }
