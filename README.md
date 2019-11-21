@@ -69,3 +69,11 @@ message IndexerResponse {
     repeated IndexedEvent events = 1;
 }
 ```
+
+## Development
+
+Recompiling protos:
+
+```
+cd types && membufc -g --go-ctx *.proto
+```

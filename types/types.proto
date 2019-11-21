@@ -26,6 +26,10 @@ message IndexedEvent {
     bytes arguments = 8;
 }
 
+message Filter {
+    repeated string argument = 1;
+}
+
 message IndexerRequest {
     uint32 protocol_version = 1;
     uint32 virtual_chain_id = 2;
@@ -38,6 +42,8 @@ message IndexerRequest {
 
     uint64 from_time = 9;
     uint64 to_time = 10;
+
+    repeated Filter filters = 11;
 }
 
 message IndexerResponse {

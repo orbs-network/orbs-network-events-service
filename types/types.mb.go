@@ -298,6 +298,157 @@ func IndexedEventBuilderFromRaw(raw []byte) *IndexedEventBuilder {
 }
 
 /////////////////////////////////////////////////////////////////////////////
+// message Filter
+
+// reader
+
+type Filter struct {
+	// Argument []string
+
+	// internal
+	// implements membuffers.Message
+	_message membuffers.InternalMessage
+}
+
+func (x *Filter) String() string {
+	if x == nil {
+		return "<nil>"
+	}
+	return fmt.Sprintf("{Argument:%s,}", x.StringArgument())
+}
+
+var _Filter_Scheme = []membuffers.FieldType{membuffers.TypeStringArray,}
+var _Filter_Unions = [][]membuffers.FieldType{}
+
+func FilterReader(buf []byte) *Filter {
+	x := &Filter{}
+	x._message.Init(buf, membuffers.Offset(len(buf)), _Filter_Scheme, _Filter_Unions)
+	return x
+}
+
+func (x *Filter) IsValid() bool {
+	return x._message.IsValid()
+}
+
+func (x *Filter) Raw() []byte {
+	return x._message.RawBuffer()
+}
+
+func (x *Filter) Equal(y *Filter) bool {
+  if x == nil && y == nil {
+    return true
+  }
+  if x == nil || y == nil {
+    return false
+  }
+  return bytes.Equal(x.Raw(), y.Raw())
+}
+
+func (x *Filter) ArgumentIterator() *FilterArgumentIterator {
+	return &FilterArgumentIterator{iterator: x._message.GetStringArrayIterator(0)}
+}
+
+type FilterArgumentIterator struct {
+	iterator *membuffers.Iterator
+}
+
+func (i *FilterArgumentIterator) HasNext() bool {
+	return i.iterator.HasNext()
+}
+
+func (i *FilterArgumentIterator) NextArgument() string {
+	return i.iterator.NextString()
+}
+
+func (x *Filter) RawArgumentArray() []byte {
+	return x._message.RawBufferForField(0, 0)
+}
+
+func (x *Filter) RawArgumentArrayWithHeader() []byte {
+	return x._message.RawBufferWithHeaderForField(0, 0)
+}
+
+func (x *Filter) StringArgument() (res string) {
+	res = "["
+	for i := x.ArgumentIterator(); i.HasNext(); {
+		res += fmt.Sprintf(i.NextArgument()) + ","
+	}
+	res += "]"
+	return
+}
+
+// builder
+
+type FilterBuilder struct {
+	Argument []string
+
+	// internal
+	// implements membuffers.Builder
+	_builder membuffers.InternalBuilder
+	_overrideWithRawBuffer []byte
+}
+
+func (w *FilterBuilder) Write(buf []byte) (err error) {
+	if w == nil {
+		return
+	}
+	w._builder.NotifyBuildStart()
+	defer w._builder.NotifyBuildEnd()
+	defer func() {
+		if r := recover(); r != nil {
+			err = &membuffers.ErrBufferOverrun{}
+		}
+	}()
+	if w._overrideWithRawBuffer != nil {
+		return w._builder.WriteOverrideWithRawBuffer(buf, w._overrideWithRawBuffer)
+	}
+	w._builder.Reset()
+	w._builder.WriteStringArray(buf, w.Argument)
+	return nil
+}
+
+func (w *FilterBuilder) HexDump(prefix string, offsetFromStart membuffers.Offset) (err error) {
+	if w == nil {
+		return
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = &membuffers.ErrBufferOverrun{}
+		}
+	}()
+	w._builder.Reset()
+	w._builder.HexDumpStringArray(prefix, offsetFromStart, "Filter.Argument", w.Argument)
+	return nil
+}
+
+func (w *FilterBuilder) GetSize() membuffers.Offset {
+	if w == nil {
+		return 0
+	}
+	return w._builder.GetSize()
+}
+
+func (w *FilterBuilder) CalcRequiredSize() membuffers.Offset {
+	if w == nil {
+		return 0
+	}
+	w.Write(nil)
+	return w._builder.GetSize()
+}
+
+func (w *FilterBuilder) Build() *Filter {
+	buf := make([]byte, w.CalcRequiredSize())
+	if w.Write(buf) != nil {
+		return nil
+	}
+	return FilterReader(buf)
+}
+
+func FilterBuilderFromRaw(raw []byte) *FilterBuilder {
+	return &FilterBuilder{_overrideWithRawBuffer: raw}
+}
+
+/////////////////////////////////////////////////////////////////////////////
 // message IndexerRequest
 
 // reader
@@ -311,6 +462,7 @@ type IndexerRequest struct {
 	// ToBlock uint64
 	// FromTime uint64
 	// ToTime uint64
+	// Filters []Filter
 
 	// internal
 	// implements membuffers.Message
@@ -321,10 +473,10 @@ func (x *IndexerRequest) String() string {
 	if x == nil {
 		return "<nil>"
 	}
-	return fmt.Sprintf("{ProtocolVersion:%s,VirtualChainId:%s,ContractName:%s,EventName:%s,FromBlock:%s,ToBlock:%s,FromTime:%s,ToTime:%s,}", x.StringProtocolVersion(), x.StringVirtualChainId(), x.StringContractName(), x.StringEventName(), x.StringFromBlock(), x.StringToBlock(), x.StringFromTime(), x.StringToTime())
+	return fmt.Sprintf("{ProtocolVersion:%s,VirtualChainId:%s,ContractName:%s,EventName:%s,FromBlock:%s,ToBlock:%s,FromTime:%s,ToTime:%s,Filters:%s,}", x.StringProtocolVersion(), x.StringVirtualChainId(), x.StringContractName(), x.StringEventName(), x.StringFromBlock(), x.StringToBlock(), x.StringFromTime(), x.StringToTime(), x.StringFilters())
 }
 
-var _IndexerRequest_Scheme = []membuffers.FieldType{membuffers.TypeUint32,membuffers.TypeUint32,membuffers.TypeString,membuffers.TypeStringArray,membuffers.TypeUint64,membuffers.TypeUint64,membuffers.TypeUint64,membuffers.TypeUint64,}
+var _IndexerRequest_Scheme = []membuffers.FieldType{membuffers.TypeUint32,membuffers.TypeUint32,membuffers.TypeString,membuffers.TypeStringArray,membuffers.TypeUint64,membuffers.TypeUint64,membuffers.TypeUint64,membuffers.TypeUint64,membuffers.TypeMessageArray,}
 var _IndexerRequest_Unions = [][]membuffers.FieldType{}
 
 func IndexerRequestReader(buf []byte) *IndexerRequest {
@@ -493,6 +645,40 @@ func (x *IndexerRequest) MutateToTime(v uint64) error {
 func (x *IndexerRequest) StringToTime() string {
 return fmt.Sprintf("%v", x.ToTime())}
 
+func (x *IndexerRequest) FiltersIterator() *IndexerRequestFiltersIterator {
+	return &IndexerRequestFiltersIterator{iterator: x._message.GetMessageArrayIterator(8)}
+}
+
+type IndexerRequestFiltersIterator struct {
+	iterator *membuffers.Iterator
+}
+
+func (i *IndexerRequestFiltersIterator) HasNext() bool {
+	return i.iterator.HasNext()
+}
+
+func (i *IndexerRequestFiltersIterator) NextFilters() *Filter {
+	b, s := i.iterator.NextMessage()
+	return FilterReader(b[:s])
+}
+
+func (x *IndexerRequest) RawFiltersArray() []byte {
+	return x._message.RawBufferForField(8, 0)
+}
+
+func (x *IndexerRequest) RawFiltersArrayWithHeader() []byte {
+	return x._message.RawBufferWithHeaderForField(8, 0)
+}
+
+func (x *IndexerRequest) StringFilters() (res string) {
+	res = "["
+	for i := x.FiltersIterator(); i.HasNext(); {
+		res += i.NextFilters().String() + ","
+	}
+	res += "]"
+	return
+}
+
 // builder
 
 type IndexerRequestBuilder struct {
@@ -504,11 +690,20 @@ type IndexerRequestBuilder struct {
 	ToBlock uint64
 	FromTime uint64
 	ToTime uint64
+	Filters []*FilterBuilder
 
 	// internal
 	// implements membuffers.Builder
 	_builder membuffers.InternalBuilder
 	_overrideWithRawBuffer []byte
+}
+
+func (w *IndexerRequestBuilder) arrayOfFilters() []membuffers.MessageWriter {
+	res := make([]membuffers.MessageWriter, len(w.Filters))
+	for i, v := range w.Filters {
+		res[i] = v
+	}
+	return res
 }
 
 func (w *IndexerRequestBuilder) Write(buf []byte) (err error) {
@@ -534,6 +729,10 @@ func (w *IndexerRequestBuilder) Write(buf []byte) (err error) {
 	w._builder.WriteUint64(buf, w.ToBlock)
 	w._builder.WriteUint64(buf, w.FromTime)
 	w._builder.WriteUint64(buf, w.ToTime)
+	err = w._builder.WriteMessageArray(buf, w.arrayOfFilters())
+	if err != nil {
+		return
+	}
 	return nil
 }
 
@@ -555,6 +754,10 @@ func (w *IndexerRequestBuilder) HexDump(prefix string, offsetFromStart membuffer
 	w._builder.HexDumpUint64(prefix, offsetFromStart, "IndexerRequest.ToBlock", w.ToBlock)
 	w._builder.HexDumpUint64(prefix, offsetFromStart, "IndexerRequest.FromTime", w.FromTime)
 	w._builder.HexDumpUint64(prefix, offsetFromStart, "IndexerRequest.ToTime", w.ToTime)
+	err = w._builder.HexDumpMessageArray(prefix, offsetFromStart, "IndexerRequest.Filters", w.arrayOfFilters())
+	if err != nil {
+		return
+	}
 	return nil
 }
 

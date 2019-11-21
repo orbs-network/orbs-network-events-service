@@ -15,6 +15,7 @@ func _init() {
 
 }
 
+// TODO add param to emit many events
 func release(name string, year uint32, lead string) {
 	events.EmitEvent(MovieRelease, name, year, lead)
 }
