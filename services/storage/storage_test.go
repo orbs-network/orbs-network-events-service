@@ -14,9 +14,19 @@ var arizonaArgsNative = []interface{}{
 	"Raising Arizona", uint32(1987), "Nicolas Cage",
 }
 
-var arizonaArgs, _ = protocol.ArgumentArrayFromNatives(arizonaArgsNative)
+var vampireArgsNative = []interface{}{
+	"Vampire's Kiss", uint32(1989), "Nicolas Cage",
+}
 
-var DEFAULT_EVENT = (&types.IndexedEventBuilder{
+var mashupArgsNative = []interface{}{
+	"Vampire's Kiss", uint32(1987), "Nicolas Cage",
+}
+
+var arizonaArgs, _ = protocol.ArgumentArrayFromNatives(arizonaArgsNative)
+var vampireArgs, _ = protocol.ArgumentArrayFromNatives(vampireArgsNative)
+var mashupArgs, _ = protocol.ArgumentArrayFromNatives(mashupArgsNative)
+
+var ARIZONA_EVENT = (&types.IndexedEventBuilder{
 	ContractName:    "SomeContract",
 	EventName:       "MovieRelease",
 	BlockHeight:     DEFAULT_BLOCK_HEIGHT,
@@ -25,13 +35,22 @@ var DEFAULT_EVENT = (&types.IndexedEventBuilder{
 	Arguments:       arizonaArgs.Raw(),
 }).Build()
 
-var NEXT_EVENT = (&types.IndexedEventBuilder{
+var VAMPIRE_EVENT = (&types.IndexedEventBuilder{
 	ContractName:    "SomeContract",
 	EventName:       "MovieRelease",
 	BlockHeight:     DEFAULT_BLOCK_HEIGHT + 100,
 	ExecutionResult: types.EXECUTION_RESULT_SUCCESS,
 	Timestamp:       DEFAULT_TIME + 5000,
-	Arguments:       arizonaArgs.Raw(),
+	Arguments:       vampireArgs.Raw(),
+}).Build()
+
+var MASHUP_EVENT = (&types.IndexedEventBuilder{
+	ContractName:    "SomeContract",
+	EventName:       "MovieRelease",
+	BlockHeight:     DEFAULT_BLOCK_HEIGHT + 100,
+	ExecutionResult: types.EXECUTION_RESULT_SUCCESS,
+	Timestamp:       DEFAULT_TIME + 5000,
+	Arguments:       mashupArgs.Raw(),
 }).Build()
 
 const DATA_SOURCE = "test.bolt"
@@ -66,25 +85,25 @@ func TestStorage_StoreEvent(t *testing.T) {
 	storage, err := NewStorage(config.GetLogger(), DATA_SOURCE, false)
 	require.NoError(t, err, "could not create new data source")
 
-	err = storage.StoreEvents(DEFAULT_BLOCK_HEIGHT, DEFAULT_TIME, []*types.IndexedEvent{DEFAULT_EVENT})
+	err = storage.StoreEvents(DEFAULT_BLOCK_HEIGHT, DEFAULT_TIME, []*types.IndexedEvent{ARIZONA_EVENT})
 	require.NoError(t, err, "could not store event")
 
 	blockHeight := storage.GetBlockHeight()
 	require.EqualValues(t, DEFAULT_BLOCK_HEIGHT, blockHeight)
 
 	eventList, err := storage.GetEvents((&types.IndexerRequestBuilder{
-		ContractName: DEFAULT_EVENT.ContractName(),
-		EventName:    []string{DEFAULT_EVENT.EventName()},
+		ContractName: ARIZONA_EVENT.ContractName(),
+		EventName:    []string{ARIZONA_EVENT.EventName()},
 	}).Build())
 	require.NoError(t, err)
 
 	require.Len(t, eventList, 1)
-	require.EqualValues(t, DEFAULT_EVENT.Raw(), eventList[0].Raw())
+	require.EqualValues(t, ARIZONA_EVENT.Raw(), eventList[0].Raw())
 
 	args, _ := protocol.PackedOutputArgumentsToNatives(eventList[0].Arguments())
 	require.EqualValues(t, arizonaArgsNative, args)
 
-	err = storage.StoreEvents(DEFAULT_BLOCK_HEIGHT+100, DEFAULT_TIME, []*types.IndexedEvent{NEXT_EVENT})
+	err = storage.StoreEvents(DEFAULT_BLOCK_HEIGHT+100, DEFAULT_TIME, []*types.IndexedEvent{VAMPIRE_EVENT})
 	require.NoError(t, err, "could not store event")
 
 	updatedBlockHeight := storage.GetBlockHeight()
@@ -92,8 +111,8 @@ func TestStorage_StoreEvent(t *testing.T) {
 	require.EqualValues(t, DEFAULT_BLOCK_HEIGHT+100, updatedBlockHeight)
 
 	eventList, err = storage.GetEvents((&types.IndexerRequestBuilder{
-		ContractName: DEFAULT_EVENT.ContractName(),
-		EventName:    []string{NEXT_EVENT.EventName()},
+		ContractName: ARIZONA_EVENT.ContractName(),
+		EventName:    []string{VAMPIRE_EVENT.EventName()},
 	}).Build())
 	require.NoError(t, err)
 	require.Len(t, eventList, 2)
@@ -141,12 +160,12 @@ func TestStorage_GetEventsFilterByBlockHeight(t *testing.T) {
 	err = storage.StoreEvents(0, 0, []*types.IndexedEvent{})
 	require.NoError(t, err, "could not store event")
 
-	err = storage.StoreEvents(DEFAULT_BLOCK_HEIGHT, DEFAULT_TIME, []*types.IndexedEvent{DEFAULT_EVENT})
+	err = storage.StoreEvents(DEFAULT_BLOCK_HEIGHT, DEFAULT_TIME, []*types.IndexedEvent{ARIZONA_EVENT})
 	require.NoError(t, err, "could not store event")
 
 	emptyEvents, err := storage.GetEvents((&types.IndexerRequestBuilder{
-		ContractName: DEFAULT_EVENT.ContractName(),
-		EventName:    []string{DEFAULT_EVENT.EventName()},
+		ContractName: ARIZONA_EVENT.ContractName(),
+		EventName:    []string{ARIZONA_EVENT.EventName()},
 		FromBlock:    0,
 		ToBlock:      DEFAULT_BLOCK_HEIGHT - 100,
 	}).Build())
@@ -154,14 +173,14 @@ func TestStorage_GetEventsFilterByBlockHeight(t *testing.T) {
 	require.Len(t, emptyEvents, 0)
 
 	events, err := storage.GetEvents((&types.IndexerRequestBuilder{
-		ContractName: DEFAULT_EVENT.ContractName(),
-		EventName:    []string{DEFAULT_EVENT.EventName()},
+		ContractName: ARIZONA_EVENT.ContractName(),
+		EventName:    []string{ARIZONA_EVENT.EventName()},
 		FromBlock:    DEFAULT_BLOCK_HEIGHT,
 		ToBlock:      DEFAULT_BLOCK_HEIGHT + 100,
 	}).Build())
 	require.NoError(t, err)
 	require.Len(t, events, 1)
-	require.EqualValues(t, events[0].Raw(), DEFAULT_EVENT.Raw())
+	require.EqualValues(t, events[0].Raw(), ARIZONA_EVENT.Raw())
 }
 
 func TestStorage_GetEventsFilterByTimestamp(t *testing.T) {
@@ -173,12 +192,12 @@ func TestStorage_GetEventsFilterByTimestamp(t *testing.T) {
 	err = storage.StoreEvents(0, 0, []*types.IndexedEvent{})
 	require.NoError(t, err, "could not store event")
 
-	err = storage.StoreEvents(DEFAULT_BLOCK_HEIGHT, DEFAULT_TIME, []*types.IndexedEvent{DEFAULT_EVENT})
+	err = storage.StoreEvents(DEFAULT_BLOCK_HEIGHT, DEFAULT_TIME, []*types.IndexedEvent{ARIZONA_EVENT})
 	require.NoError(t, err, "could not store event")
 
 	emptyEvents, err := storage.GetEvents((&types.IndexerRequestBuilder{
-		ContractName: DEFAULT_EVENT.ContractName(),
-		EventName:    []string{DEFAULT_EVENT.EventName()},
+		ContractName: ARIZONA_EVENT.ContractName(),
+		EventName:    []string{ARIZONA_EVENT.EventName()},
 		FromTime:     0,
 		ToTime:       DEFAULT_TIME - 100,
 	}).Build())
@@ -186,14 +205,14 @@ func TestStorage_GetEventsFilterByTimestamp(t *testing.T) {
 	require.Len(t, emptyEvents, 0)
 
 	events, err := storage.GetEvents((&types.IndexerRequestBuilder{
-		ContractName: DEFAULT_EVENT.ContractName(),
-		EventName:    []string{DEFAULT_EVENT.EventName()},
+		ContractName: ARIZONA_EVENT.ContractName(),
+		EventName:    []string{ARIZONA_EVENT.EventName()},
 		FromTime:     DEFAULT_TIME - 100,
 		ToTime:       DEFAULT_TIME + 100,
 	}).Build())
 	require.NoError(t, err)
 	require.Len(t, events, 1)
-	require.EqualValues(t, events[0].Raw(), DEFAULT_EVENT.Raw())
+	require.EqualValues(t, events[0].Raw(), ARIZONA_EVENT.Raw())
 }
 
 func TestStorage_GetEventsFilterWithFieldMatching(t *testing.T) {
@@ -202,14 +221,14 @@ func TestStorage_GetEventsFilterWithFieldMatching(t *testing.T) {
 	storage, err := NewStorage(config.GetLogger(), DATA_SOURCE, false)
 	require.NoError(t, err, "could not create new data source")
 
-	err = storage.StoreEvents(DEFAULT_BLOCK_HEIGHT, DEFAULT_TIME, []*types.IndexedEvent{DEFAULT_EVENT})
+	err = storage.StoreEvents(DEFAULT_BLOCK_HEIGHT, DEFAULT_TIME, []*types.IndexedEvent{ARIZONA_EVENT})
 	require.NoError(t, err, "could not store event")
 
 	vampireFilter, _ := protocol.ArgumentArrayFromNatives([]interface{}{"Vampire's Kill"})
 
 	emptyEvents, err := storage.GetEvents((&types.IndexerRequestBuilder{
-		ContractName: DEFAULT_EVENT.ContractName(),
-		EventName:    []string{DEFAULT_EVENT.EventName()},
+		ContractName: ARIZONA_EVENT.ContractName(),
+		EventName:    []string{ARIZONA_EVENT.EventName()},
 		Filters: [][]byte{
 			vampireFilter.Raw(),
 		},
@@ -220,13 +239,13 @@ func TestStorage_GetEventsFilterWithFieldMatching(t *testing.T) {
 	arizonaFilter, _ := protocol.ArgumentArrayFromNatives([]interface{}{"Raising Arizona"})
 
 	events, err := storage.GetEvents((&types.IndexerRequestBuilder{
-		ContractName: DEFAULT_EVENT.ContractName(),
-		EventName:    []string{DEFAULT_EVENT.EventName()},
+		ContractName: ARIZONA_EVENT.ContractName(),
+		EventName:    []string{ARIZONA_EVENT.EventName()},
 		Filters: [][]byte{
 			arizonaFilter.Raw(),
 		},
 	}).Build())
 	require.NoError(t, err)
 	require.Len(t, events, 1)
-	require.EqualValues(t, events[0].Raw(), DEFAULT_EVENT.Raw())
+	require.EqualValues(t, events[0].Raw(), ARIZONA_EVENT.Raw())
 }

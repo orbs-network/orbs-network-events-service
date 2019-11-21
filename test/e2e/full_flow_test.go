@@ -34,12 +34,16 @@ func TestFullFlow(t *testing.T) {
 	contractName, _ := deployEventEmitterContract(t, orbsClient, account)
 
 	sendArizonaTransaction(t, orbsClient, account, contractName)
+	sendVampireTransaction(t, orbsClient, account, contractName)
 
 	require.Eventually(t, func() bool {
 		events, err := client.GetEvents(fmt.Sprintf("http://localhost:%d", server.Port()), client.GetEventsQuery{
 			VirtualChainId: 42,
 			ContractName:   contractName,
 			EventName:      []string{"MovieRelease"},
+			Filters: [][]interface{}{
+				{"Vampire's Kiss"}, {uint32(1989)},
+			},
 		})
 
 		if err != nil {
@@ -56,7 +60,8 @@ func TestFullFlow(t *testing.T) {
 			return false
 		}
 
-		return arguments[2].(string) == "Nicolas Cage"
+		println("got", arguments[0].(string))
+		return arguments[0].(string) == "Vampire's Kiss"
 	}, 10*time.Second, 100*time.Millisecond, "indexer api should return events")
 
 }

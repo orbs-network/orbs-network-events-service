@@ -1,12 +1,10 @@
 package storage
 
 import (
-	"bytes"
 	"fmt"
 	"github.com/orbs-network/orbs-network-events-service/types"
 	"github.com/orbs-network/orbs-spec/types/go/protocol"
 	"github.com/orbs-network/scribe/log"
-	"github.com/pkg/errors"
 	bolt "go.etcd.io/bbolt"
 	"strings"
 	"time"
@@ -110,7 +108,8 @@ func (s *storage) GetEvents(filterQuery *types.IndexerRequest) (events []*types.
 			tableName := getEventsBucketName(filterQuery.ContractName(), eventName)
 			eventsBucket := tx.Bucket([]byte(tableName))
 			if eventsBucket == nil {
-				return errors.Errorf("bucket %s not found", tableName)
+				// return empty array
+				return nil
 			}
 
 			if filterQuery.FromBlock() != 0 || filterQuery.ToBlock() != 0 {
@@ -229,31 +228,4 @@ func (s *storage) Shutdown() (err error) {
 
 func getEventsBucketName(contractName string, eventName string) string {
 	return strings.Join([]string{"events", contractName, eventName}, ".")
-}
-
-func matchEvent(event *types.IndexedEvent, filters []*protocol.ArgumentArray) bool {
-	filtersCount := len(filters)
-	if filtersCount == 0 {
-		return true
-	}
-
-	eventArguments := protocol.ArgumentArrayReader(event.Arguments())
-	i := 0
-	for argumentsIterator := eventArguments.ArgumentsIterator(); argumentsIterator.HasNext(); i++ {
-		arg := argumentsIterator.NextArguments()
-
-		if filtersCount >= i+1 {
-			filter := filters[i]
-			// Only direct matches
-			if filter.ArgumentsIterator().HasNext() {
-				filterArg0 := filter.ArgumentsIterator().NextArguments()
-				println("matching", arg.String(), "against", filterArg0.String())
-				if match := bytes.Equal(arg.Raw(), filterArg0.Raw()); match {
-					return true
-				}
-			}
-		}
-	}
-
-	return false
 }

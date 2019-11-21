@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/orbs-network/orbs-network-events-service/types"
+	"github.com/orbs-network/orbs-spec/types/go/protocol"
 	"github.com/pkg/errors"
 	"io/ioutil"
 	"net/http"
@@ -19,9 +20,20 @@ type GetEventsQuery struct {
 
 	FromTime int64
 	ToTime   int64
+
+	Filters [][]interface{}
 }
 
 func GetEvents(endpoint string, query GetEventsQuery) (events []*types.IndexedEvent, err error) {
+	var filters [][]byte
+	for _, nativeFilters := range query.Filters {
+		filtersAsBytes, err := protocol.ArgumentArrayFromNatives(nativeFilters)
+		if err != nil {
+			return nil, err
+		}
+		filters = append(filters, filtersAsBytes.Raw())
+	}
+
 	requestBody := (&types.IndexerRequestBuilder{
 		VirtualChainId: query.VirtualChainId,
 		ContractName:   query.ContractName,
@@ -30,6 +42,7 @@ func GetEvents(endpoint string, query GetEventsQuery) (events []*types.IndexedEv
 		ToBlock:        uint64(query.ToBlock),
 		FromTime:       uint64(query.FromTime),
 		ToTime:         uint64(query.ToTime),
+		Filters:        filters,
 	}).Build().Raw()
 
 	res, err := http.Post(fmt.Sprintf("%s/api/v1/get-events", endpoint), "application/membuffers", bytes.NewReader(requestBody))
