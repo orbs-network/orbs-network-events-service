@@ -72,7 +72,14 @@ message IndexerResponse {
 
 ## Development
 
-Recompiling protos:
+### Testing
+
+```
+gamma-cli start-local -env experimental
+go test ./... -v
+```
+
+### Recompiling protos
 
 ```
 cd types && membufc -g --go-ctx *.proto
