@@ -1,8 +1,8 @@
-package boostrap
+package bootstrap
 
 import (
 	"context"
-	"github.com/orbs-network/orbs-network-events-service/boostrap/httpserver"
+	"github.com/orbs-network/orbs-network-events-service/bootstrap/httpserver"
 	"github.com/orbs-network/orbs-network-events-service/config"
 	"github.com/orbs-network/orbs-network-events-service/types"
 	"github.com/orbs-network/scribe/log"

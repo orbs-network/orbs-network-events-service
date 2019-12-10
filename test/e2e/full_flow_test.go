@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/orbs-network/orbs-client-sdk-go/codec"
 	"github.com/orbs-network/orbs-client-sdk-go/orbs"
-	"github.com/orbs-network/orbs-network-events-service/boostrap"
+	"github.com/orbs-network/orbs-network-events-service/bootstrap"
 	"github.com/orbs-network/orbs-network-events-service/client"
 	"github.com/orbs-network/orbs-network-events-service/config"
 	"github.com/orbs-network/orbs-spec/types/go/protocol"
@@ -20,7 +20,7 @@ func TestFullFlow(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	server, err := boostrap.NewCluster(ctx, &config.Config{
+	server, err := bootstrap.NewCluster(ctx, &config.Config{
 		Endpoint:        "http://localhost:8080",
 		VirtualChains:   []uint32{42},
 		DB:              "./",
