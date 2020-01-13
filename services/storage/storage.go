@@ -119,13 +119,17 @@ func (s *storage) GetEvents(filterQuery *types.IndexerRequest) (events []*types.
 					toBlock = s.GetBlockHeight()
 				}
 
-				// FIXME lookups
+				lastBlock := uint64(0)
 				for i := filterQuery.FromBlock(); i <= toBlock; i++ {
 					blockHeightRaw, indexedEventRaw := cursor.Seek(ToBytes(i))
+
 					if blockHeightRaw == nil {
 						break
-					} else if ReadUint64(blockHeightRaw) <= filterQuery.ToBlock() {
+					} else if blockHeight := ReadUint64(blockHeightRaw); blockHeight == lastBlock {
+						break
+					} else if blockHeight <= filterQuery.ToBlock() {
 						event := types.IndexedEventReader(indexedEventRaw)
+						lastBlock = blockHeight
 						i = event.BlockHeight()
 						if matchEvent(event, filters) {
 							events = append(events, event)
