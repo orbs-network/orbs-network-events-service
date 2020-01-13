@@ -183,6 +183,36 @@ func TestStorage_GetEventsFilterByBlockHeight(t *testing.T) {
 	require.EqualValues(t, events[0].Raw(), ARIZONA_EVENT.Raw())
 }
 
+func TestStorage_GetEventsFilterByBlockHeightWithRange(t *testing.T) {
+	removeDB()
+
+	storage, err := NewStorage(config.GetLogger(), DATA_SOURCE, false)
+	require.NoError(t, err, "could not create new data source")
+
+	err = storage.StoreEvents(DEFAULT_BLOCK_HEIGHT, DEFAULT_TIME, []*types.IndexedEvent{ARIZONA_EVENT})
+	require.NoError(t, err, "could not store event")
+
+	emptyEvents, err := storage.GetEvents((&types.IndexerRequestBuilder{
+		ContractName: ARIZONA_EVENT.ContractName(),
+		EventName:    []string{ARIZONA_EVENT.EventName()},
+		FromBlock:    1,
+		ToBlock:      DEFAULT_BLOCK_HEIGHT - 100,
+	}).Build())
+	require.NoError(t, err)
+	require.Len(t, emptyEvents, 0)
+
+	events, err := storage.GetEvents((&types.IndexerRequestBuilder{
+		ContractName: ARIZONA_EVENT.ContractName(),
+		EventName:    []string{ARIZONA_EVENT.EventName()},
+		FromBlock:    1,
+		ToBlock:      DEFAULT_BLOCK_HEIGHT + 9000,
+	}).Build())
+	require.NoError(t, err)
+	println(len(events))
+	require.Len(t, events, 1)
+	require.EqualValues(t, events[0].Raw(), ARIZONA_EVENT.Raw())
+}
+
 func TestStorage_GetEventsFilterByTimestamp(t *testing.T) {
 	removeDB()
 

@@ -126,6 +126,7 @@ func (s *storage) GetEvents(filterQuery *types.IndexerRequest) (events []*types.
 						break
 					} else if ReadUint64(blockHeightRaw) <= filterQuery.ToBlock() {
 						event := types.IndexedEventReader(indexedEventRaw)
+						i = event.BlockHeight()
 						if matchEvent(event, filters) {
 							events = append(events, event)
 						}
