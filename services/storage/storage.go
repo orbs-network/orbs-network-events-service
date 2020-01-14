@@ -5,6 +5,7 @@ import (
 	"github.com/orbs-network/orbs-network-events-service/types"
 	"github.com/orbs-network/orbs-spec/types/go/protocol"
 	"github.com/orbs-network/scribe/log"
+	"github.com/pkg/errors"
 	bolt "go.etcd.io/bbolt"
 	"strings"
 	"time"
@@ -69,7 +70,12 @@ func (s *storage) StoreEvents(blockHeight uint64, timestamp uint64, events []*ty
 
 func (s *storage) storeEvent(tx *bolt.Tx, blockHeight uint64, timestamp uint64, event *types.IndexedEvent) error {
 	tableName := getEventsBucketName(event.ContractName(), event.EventName())
-	eventsBucket, err := tx.CreateBucketIfNotExists([]byte(tableName))
+	blocksBucket, err := tx.CreateBucketIfNotExists([]byte(tableName))
+	if err != nil {
+		return err
+	}
+
+	eventsBucket, err := blocksBucket.CreateBucketIfNotExists(ToBytes(blockHeight))
 	if err != nil {
 		return err
 	}
@@ -80,7 +86,7 @@ func (s *storage) storeEvent(tx *bolt.Tx, blockHeight uint64, timestamp uint64, 
 		log.String("contractName", event.ContractName()),
 		log.String("eventName", event.EventName()))
 
-	return eventsBucket.Put(ToBytes(uint64(blockHeight)), event.Raw())
+	return eventsBucket.Put(ToBytes(event.Index()), event.Raw())
 }
 
 func (s *storage) GetEvents(filterQuery *types.IndexerRequest) (events []*types.IndexedEvent, err error) {
@@ -106,42 +112,38 @@ func (s *storage) GetEvents(filterQuery *types.IndexerRequest) (events []*types.
 		for iterator := filterQuery.EventNameIterator(); iterator.HasNext(); {
 			eventName := iterator.NextEventName()
 			tableName := getEventsBucketName(filterQuery.ContractName(), eventName)
-			eventsBucket := tx.Bucket([]byte(tableName))
-			if eventsBucket == nil {
+			blocksBucket := tx.Bucket([]byte(tableName))
+			if blocksBucket == nil {
 				// return empty array
 				return nil
 			}
 
 			if filterQuery.FromBlock() != 0 || filterQuery.ToBlock() != 0 {
-				cursor := eventsBucket.Cursor()
 				toBlock := filterQuery.ToBlock()
 				if toBlock == 0 {
 					toBlock = s.GetBlockHeight()
 				}
 
-				// FIXME lookups
+				if maxBlockHeight := s.GetBlockHeight(); toBlock > maxBlockHeight {
+					toBlock = maxBlockHeight
+				}
+
 				for i := filterQuery.FromBlock(); i <= toBlock; i++ {
-					blockHeightRaw, indexedEventRaw := cursor.Seek(ToBytes(i))
-					if blockHeightRaw == nil {
-						break
-					} else if ReadUint64(blockHeightRaw) <= filterQuery.ToBlock() {
+					eventsBucket := blocksBucket.Bucket(ToBytes(i))
+					if eventsBucket == nil {
+						continue
+					}
+
+					eventsCursor := eventsBucket.Cursor()
+					for eventIndexRaw, indexedEventRaw := eventsCursor.First(); eventIndexRaw != nil; eventIndexRaw, indexedEventRaw = eventsCursor.Next() {
 						event := types.IndexedEventReader(indexedEventRaw)
-						i = event.BlockHeight()
 						if matchEvent(event, filters) {
 							events = append(events, event)
 						}
-					} else {
-						break
 					}
 				}
 			} else {
-				eventsBucket.ForEach(func(blockHeightRaw, indexedEventRaw []byte) error {
-					event := types.IndexedEventReader(indexedEventRaw)
-					if matchEvent(event, filters) {
-						events = append(events, event)
-					}
-					return nil
-				})
+				return errors.New("block range or time range is required for this query")
 			}
 		}
 

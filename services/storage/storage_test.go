@@ -33,6 +33,7 @@ var ARIZONA_EVENT = (&types.IndexedEventBuilder{
 	ExecutionResult: types.EXECUTION_RESULT_SUCCESS,
 	Timestamp:       DEFAULT_TIME,
 	Arguments:       arizonaArgs.Raw(),
+	Index:           1,
 }).Build()
 
 var VAMPIRE_EVENT = (&types.IndexedEventBuilder{
@@ -42,6 +43,7 @@ var VAMPIRE_EVENT = (&types.IndexedEventBuilder{
 	ExecutionResult: types.EXECUTION_RESULT_SUCCESS,
 	Timestamp:       DEFAULT_TIME + 5000,
 	Arguments:       vampireArgs.Raw(),
+	Index:           2,
 }).Build()
 
 var MASHUP_EVENT = (&types.IndexedEventBuilder{
@@ -51,6 +53,7 @@ var MASHUP_EVENT = (&types.IndexedEventBuilder{
 	ExecutionResult: types.EXECUTION_RESULT_SUCCESS,
 	Timestamp:       DEFAULT_TIME + 5000,
 	Arguments:       mashupArgs.Raw(),
+	Index:           3,
 }).Build()
 
 const DATA_SOURCE = "test.bolt"
@@ -94,6 +97,8 @@ func TestStorage_StoreEvent(t *testing.T) {
 	eventList, err := storage.GetEvents((&types.IndexerRequestBuilder{
 		ContractName: ARIZONA_EVENT.ContractName(),
 		EventName:    []string{ARIZONA_EVENT.EventName()},
+		FromBlock:    0,
+		ToBlock:      9999,
 	}).Build())
 	require.NoError(t, err)
 
@@ -113,9 +118,36 @@ func TestStorage_StoreEvent(t *testing.T) {
 	eventList, err = storage.GetEvents((&types.IndexerRequestBuilder{
 		ContractName: ARIZONA_EVENT.ContractName(),
 		EventName:    []string{VAMPIRE_EVENT.EventName()},
+		FromBlock:    0,
+		ToBlock:      9999,
 	}).Build())
 	require.NoError(t, err)
 	require.Len(t, eventList, 2)
+}
+
+func TestStorage_StoreMultipleEvents(t *testing.T) {
+	removeDB()
+
+	storage, err := NewStorage(config.GetLogger(), DATA_SOURCE, false)
+	require.NoError(t, err, "could not create new data source")
+
+	err = storage.StoreEvents(DEFAULT_BLOCK_HEIGHT, DEFAULT_TIME, []*types.IndexedEvent{ARIZONA_EVENT, VAMPIRE_EVENT})
+	require.NoError(t, err, "could not store event")
+
+	blockHeight := storage.GetBlockHeight()
+	require.EqualValues(t, DEFAULT_BLOCK_HEIGHT, blockHeight)
+
+	eventList, err := storage.GetEvents((&types.IndexerRequestBuilder{
+		ContractName: ARIZONA_EVENT.ContractName(),
+		EventName:    []string{ARIZONA_EVENT.EventName()},
+		FromBlock:    0,
+		ToBlock:      9999,
+	}).Build())
+	require.NoError(t, err)
+
+	require.Len(t, eventList, 2)
+	require.EqualValues(t, ARIZONA_EVENT.Raw(), eventList[0].Raw())
+	require.EqualValues(t, VAMPIRE_EVENT.Raw(), eventList[1].Raw())
 }
 
 func TestStorage_StoreEventUpdatesBlockHeight(t *testing.T) {
@@ -189,7 +221,9 @@ func TestStorage_GetEventsFilterByBlockHeightWithRange(t *testing.T) {
 	storage, err := NewStorage(config.GetLogger(), DATA_SOURCE, false)
 	require.NoError(t, err, "could not create new data source")
 
-	err = storage.StoreEvents(DEFAULT_BLOCK_HEIGHT, DEFAULT_TIME, []*types.IndexedEvent{ARIZONA_EVENT})
+	err = storage.StoreEvents(DEFAULT_BLOCK_HEIGHT, ARIZONA_EVENT.Timestamp(), []*types.IndexedEvent{ARIZONA_EVENT, VAMPIRE_EVENT})
+	require.NoError(t, err, "could not store event")
+	err = storage.StoreEvents(DEFAULT_BLOCK_HEIGHT+2000, MASHUP_EVENT.Timestamp(), []*types.IndexedEvent{MASHUP_EVENT})
 	require.NoError(t, err, "could not store event")
 
 	emptyEvents, err := storage.GetEvents((&types.IndexerRequestBuilder{
@@ -208,9 +242,10 @@ func TestStorage_GetEventsFilterByBlockHeightWithRange(t *testing.T) {
 		ToBlock:      DEFAULT_BLOCK_HEIGHT + 9000,
 	}).Build())
 	require.NoError(t, err)
-	println(len(events))
-	require.Len(t, events, 1)
+	require.Len(t, events, 3)
 	require.EqualValues(t, events[0].Raw(), ARIZONA_EVENT.Raw())
+	require.EqualValues(t, events[1].Raw(), VAMPIRE_EVENT.Raw())
+	require.EqualValues(t, events[2].Raw(), MASHUP_EVENT.Raw())
 }
 
 func TestStorage_GetEventsFilterByTimestamp(t *testing.T) {
@@ -262,6 +297,8 @@ func TestStorage_GetEventsFilterWithFieldMatching(t *testing.T) {
 		Filters: [][]byte{
 			vampireFilter.Raw(),
 		},
+		FromBlock: 0,
+		ToBlock:   9999,
 	}).Build())
 	require.NoError(t, err)
 	require.Len(t, emptyEvents, 0)
@@ -274,6 +311,8 @@ func TestStorage_GetEventsFilterWithFieldMatching(t *testing.T) {
 		Filters: [][]byte{
 			arizonaFilter.Raw(),
 		},
+		FromBlock: 0,
+		ToBlock:   9999,
 	}).Build())
 	require.NoError(t, err)
 	require.Len(t, events, 1)

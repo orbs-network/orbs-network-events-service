@@ -44,6 +44,8 @@ func TestFullFlow(t *testing.T) {
 			Filters: [][]interface{}{
 				{"Vampire's Kiss"}, {uint32(1989)},
 			},
+			FromBlock: 0,
+			ToBlock:   9999,
 		})
 
 		if err != nil {
